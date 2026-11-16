@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rent Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Layout: a fixed left rail and one working column. The month switcher is the only filter and sits above everything it scopes.
+     Data lives in ruled ledger tables, not cards. The one loud element is the meter drum (odometer digits). */
+  --paper:#FFFFFF; --surface:#FFFFFF; --sunken:#F0F3F5; --side:#F4F6F8;
+  --ink:#0C181F; --ink-2:#394952; --ink-3:#5F6F78; --line:#C6D0D6;
+  --accent:#2C3A96; --accent-ink:#FFFFFF; --accent-wash:#E8EBFA;
+  --good:#0ca30c; --good-ink:#006300; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b; --crit-ink:#B42C2C;
+  --s-rent:#2a78d6; --s-elec:#eb6834; --s-water:#1baf7a; --s-other:#eda100; --heat:#256abf;
+  --font:"Anuphan","Noto Sans Thai",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --doc:"Sarabun","Anuphan","Noto Sans Thai",system-ui,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%}
+h1,h2,h3,p{margin:0}
+h1{font-size:28px;line-height:1.15;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+h2{font-size:17px;font-weight:600;text-wrap:balance}
+h3{font-size:14px;font-weight:600}
+a{color:var(--accent)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.sub{color:var(--ink-2);font-size:14.5px}
+.hint{color:var(--ink-3);font-size:14px;margin-top:8px}
+
+.app{display:grid;grid-template-columns:216px minmax(0,1fr);min-height:100%}
+.side{background:var(--side);border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:22px;position:sticky;top:0;height:100vh}
+.brand{padding:0 8px}
+.brand-name{font-weight:700;font-size:16px;line-height:1.25;overflow-wrap:anywhere}
+.brand-sub{color:var(--ink-3);font-size:13.5px;margin-top:2px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:block;padding:8px 10px;border-radius:6px;color:var(--ink-2);text-decoration:none;font-weight:500;border-left:3px solid transparent}
+.nav a:hover{background:var(--sunken);color:var(--ink)}
+.nav a[aria-current="page"]{background:var(--accent-wash);color:var(--accent);border-left-color:var(--accent)}
+.save{margin-top:auto;padding:0 8px;font-size:13.5px;color:var(--ink-3);display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.save b{font-weight:600;color:var(--ink-2)}
+.save.bad b{color:var(--crit-ink)}
+.main{min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 28px;border-bottom:1px solid var(--line);background:var(--surface);min-height:62px}
+.month{display:flex;align-items:center;gap:4px}
+.month select{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:7px 10px;font-weight:600;min-width:170px}
+.icon-btn{border:1px solid var(--line);background:var(--surface);border-radius:6px;width:34px;height:36px;cursor:pointer;font-size:16px;line-height:1}
+.icon-btn:hover:not(:disabled){background:var(--sunken)}
+.icon-btn:disabled{opacity:.4;cursor:default}
+.top-space{flex:1}
+.banner{margin:16px 28px 0;padding:12px 16px;border:1px solid var(--line);border-left:4px solid var(--warn);background:var(--surface);border-radius:6px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.banner p{flex:1;min-width:220px}
+.view{padding:26px 28px 60px;display:flex;flex-direction:column;gap:26px;max-width:1180px;width:100%}
+.head{display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap}
+.head > div:first-child{flex:1;min-width:220px}
+.head .sub{margin-top:4px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+.btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover:not(:disabled){background:var(--sunken)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn-primary:hover:not(:disabled){background:var(--accent);filter:brightness(1.12)}
+.btn-danger{color:var(--crit-ink)}
+.btn-sm{padding:6px 11px;font-size:14px}
+
+.band{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--side);border:1px solid var(--line);border-radius:8px}
+.fig{padding:16px 20px;border-left:1px solid var(--line)}
+.fig:first-child{border-left:0}
+.fig-l{color:var(--ink-2);font-size:14.5px}
+.fig-v{font-size:26px;font-weight:700;line-height:1.2;margin-top:2px;overflow-wrap:anywhere}
+.fig-s{color:var(--ink-3);font-size:14px;margin-top:2px}
+.collect{display:flex;flex-direction:column;gap:6px}
+.track{height:8px;border-radius:99px;background:var(--accent-wash);overflow:hidden}
+.track > i{display:block;height:100%;background:var(--accent);border-radius:99px}
+.cols{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:30px}
+.sec{display:flex;flex-direction:column;gap:12px;min-width:0}
+.attn{list-style:none;margin:0;padding:0;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.attn li{display:flex;gap:12px;align-items:center;padding:11px 14px;border-top:1px solid var(--line)}
+.attn li:first-child{border-top:0}
+.attn .ic{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;background:var(--ink-3)}
+.attn .crit .ic,.ic.crit{background:var(--crit)}
+.attn .warn .ic{background:var(--warn);color:#16232A}
+.attn .txt{flex:1;min-width:0}
+.attn .txt b{display:block;font-weight:600}
+.attn .txt span{color:var(--ink-2);font-size:14.5px}
+.empty{padding:22px;background:var(--surface);border:1px dashed var(--line);border-radius:8px;color:var(--ink-2);display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:14px;color:var(--ink-2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.chart{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 10px 6px;min-width:0}
+.chart svg{display:block;max-width:100%}
+.chart text{font-family:var(--font);font-size:12.5px;fill:var(--ink-3);font-variant-numeric:tabular-nums}
+.chart .val{fill:var(--ink);font-weight:600;font-size:13px}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .base{stroke:var(--ink-3);stroke-width:1}
+.chart .hit{fill:transparent;cursor:default}
+.chart .hit:hover,.chart .hit:focus{fill:var(--ink);fill-opacity:.06;outline:none}
+.tip{position:fixed;z-index:60;pointer-events:none;background:var(--ink);color:var(--paper);border-radius:6px;padding:8px 10px;font-size:12.5px;line-height:1.45;max-width:240px;box-shadow:0 6px 18px rgba(0,0,0,.22)}
+.tip .t{font-weight:600;margin-bottom:3px}
+.tip .r{display:flex;gap:10px;justify-content:space-between;align-items:center}
+.tip .r b{font-variant-numeric:tabular-nums}
+.tip .k{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+
+.tbl-wrap{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow-x:auto}
+table.tbl{border-collapse:collapse;width:100%;font-size:15px}
+.tbl th,.tbl td{padding:9px 12px;border-top:1px solid var(--line);text-align:left;vertical-align:middle}
+.tbl thead th{border-top:0;font-weight:600;color:var(--ink-2);font-size:14px;white-space:nowrap;background:var(--sunken)}
+.tbl thead .grp th{border-bottom:0;padding-bottom:0;color:var(--ink)}
+.tbl tbody th{font-weight:600}
+.tbl tbody th a{text-decoration:none}
+.tbl td.num,.tbl th.num{text-align:right}
+.tbl tfoot td,.tbl tfoot th{font-weight:700;background:var(--sunken)}
+.tbl .sub{font-weight:400;font-size:13.5px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbl tr.is-vacant th,.tbl tr.is-vacant td{color:var(--ink-3)}
+.tbl tr.clickable{cursor:pointer}
+.tbl tr.clickable:hover td,.tbl tr.clickable:hover th{background:var(--sunken)}
+.tbl .gl{border-left:1px solid var(--line)}
+.rd{width:92px;border:1px solid var(--line);border-radius:6px;padding:7px 8px;background:var(--surface);font-variant-numeric:tabular-nums;text-align:right;font-weight:600}
+.rd:disabled{background:var(--sunken);color:var(--ink-2)}
+.rd.bad{border-color:var(--crit);background:color-mix(in srgb,var(--crit) 8%,var(--surface))}
+
+.drum{display:inline-flex;gap:1px;padding:2px;border-radius:4px;background:#0f1417;border:1px solid #3a454c;font-variant-numeric:tabular-nums;font-weight:600;font-size:13px;line-height:1}
+.drum b{display:inline-grid;place-items:center;width:14px;height:20px;background:#22292e;color:#f4f6f7;border-radius:2px;font-weight:600}
+.drum b.t{background:#c0392f;color:#fff}
+.drum.w{background:#c9d2d7;border-color:#aab6bd}
+.drum.w b{background:#fbfcfc;color:#16232A}
+.drum.w b.t{background:#fbfcfc;color:#c0392f}
+.drum.lg{font-size:17px}
+.drum.lg b{width:19px;height:27px}
+
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:99px;padding:3px 10px 3px 8px;font-size:13.5px;font-weight:600;border:1px solid var(--line);background:var(--surface);white-space:nowrap}
+.pill i{font-style:normal;width:15px;height:15px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:700;color:#fff;background:var(--ink-3)}
+.pill.paid i{background:var(--good)} .pill.paid{border-color:color-mix(in srgb,var(--good) 45%,var(--line))}
+.pill.overdue i{background:var(--crit)} .pill.overdue{border-color:color-mix(in srgb,var(--crit) 50%,var(--line));color:var(--crit-ink)}
+.pill.partial i{background:var(--warn);color:#16232A}
+.pill.due i{background:var(--accent);color:var(--accent-ink)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:6px 13px;font-size:14px;font-weight:600;cursor:pointer;color:var(--ink-2)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+
+.util{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.util > div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field.full{grid-column:1/-1}
+.field label,.field .lab{font-size:14px;color:var(--ink-2);font-weight:500}
+.field input,.field select,.field textarea{border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--surface);width:100%;min-width:0}
+.field small{color:var(--ink-3);font-size:13.5px}
+.verdict{font-size:14.5px;color:var(--ink-2);border-top:1px solid var(--line);padding-top:10px}
+.verdict b{color:var(--ink)}
+.verdict .over{color:var(--crit-ink)}
+
+.floor{display:flex;flex-direction:column;gap:10px}
+.floor h2{color:var(--ink-2);font-size:14px}
+.rooms{display:grid;grid-template-columns:repeat(auto-fill,minmax(168px,1fr));gap:10px}
+.room{display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px;text-decoration:none;color:var(--ink);border-top:4px solid var(--accent)}
+.room.vac{border-top-color:var(--line);background:transparent;border-style:dashed;border-top-style:solid}
+.room:hover{box-shadow:0 2px 0 var(--line)}
+.room .no{font-size:22px;font-weight:700;line-height:1.1}
+.room .who{font-size:14.5px;color:var(--ink-2);min-height:20px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.room .rent{font-size:14px;color:var(--ink-2)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.facts > div{padding:12px 16px;border-left:1px solid var(--line);margin-left:-1px}
+.facts dt{font-size:14px;color:var(--ink-2)}
+.facts dd{margin:2px 0 0;font-weight:600;overflow-wrap:anywhere}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.heat td.h{font-variant-numeric:tabular-nums;text-align:right;min-width:54px}
+.heat td.h.on{color:#fff}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px;display:flex;flex-direction:column;gap:14px}
+
+.modal-bg{position:fixed;inset:0;background:rgba(10,16,20,.55);z-index:50;display:flex;align-items:flex-start;justify-content:center;padding:28px 16px;overflow-y:auto}
+.modal{background:var(--surface);border-radius:10px;border:1px solid var(--line);width:100%;max-width:520px;padding:22px;display:flex;flex-direction:column;gap:16px;box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.modal.wide{max-width:820px}
+.modal-head{display:flex;gap:12px;align-items:flex-start}
+.modal-head h2{flex:1;font-size:19px}
+.modal-foot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;z-index:70;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+
+/* The bill is a paper document read on a phone: one column, the amount to pay first. */
+.sheet-wrap{display:flex;justify-content:center}
+.sheet{font-family:var(--doc);background:#fff;color:#141c21;border:1px solid #c6d0d6;border-radius:10px;padding:24px 26px;width:100%;max-width:560px;font-size:16px;line-height:1.45}
+.sheet.rc{background:#FDF1F4}
+.sh-top{display:flex;gap:16px;justify-content:space-between;align-items:flex-start}
+.sh-org b{font-size:19px;line-height:1.25;display:block}
+.sh-org div,.sh-kind div{color:#4b5a62;font-size:14px}
+.sh-kind{text-align:right;white-space:nowrap}
+.sh-kind b{font-size:18px;display:block}
+.sh-who{display:flex;gap:12px;justify-content:space-between;align-items:baseline;margin-top:16px;font-size:17px;flex-wrap:wrap}
+.sh-who span{color:#4b5a62}
+.sh-due{display:flex;gap:12px;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;margin:14px 0 6px;padding:16px 18px;border-radius:10px;background:#EEF1FB}
+.sheet.rc .sh-due{background:#E0F2E4}
+.sh-due .lb{color:#4b5a62;font-size:14.5px}
+.sh-due .amt{font-size:34px;font-weight:700;line-height:1.15;font-variant-numeric:tabular-nums}
+.sh-due .by{text-align:right}
+.sh-due .by b{font-size:17px}
+.ln{display:flex;gap:14px;justify-content:space-between;align-items:flex-start;padding:10px 0;border-top:1px solid #dfe5e9}
+.ln .nm span{color:#4b5a62;font-size:14px}
+.ln .dt{color:#4b5a62;font-size:14.5px;margin-top:1px}
+.ln .am{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ln.tot{border-top:2px solid #141c21;font-size:18.5px}
+.ln.sm{border-top:0;padding:2px 0}
+.ln.sm .am{font-weight:500}
+.sh-pay{margin-top:12px;padding-top:12px;border-top:1px solid #dfe5e9;font-size:14.5px;color:#2c373d}
+.paylist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.paylist li{display:flex;gap:10px;align-items:center;font-size:14px}
+.paylist li span{flex:1}
+.inline-form{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+.inline-form .field{flex:1;min-width:120px}
+.loading{padding:60px 28px;color:var(--ink-2)}
+.bulk{max-height:55vh;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.bulk input{width:110px;border:1px solid var(--line);border-radius:6px;padding:6px 8px;text-align:right;background:var(--surface)}
+
+[hidden]{display:none !important}
+.login{min-height:100%;display:grid;place-items:center;padding:24px;background:var(--side)}
+.login-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:28px;width:100%;max-width:380px;display:flex;flex-direction:column;gap:14px}
+.login-card h1{font-size:26px}
+.login-msg{font-size:14.5px;color:var(--crit-ink);margin:0}
+.login-msg.ok{color:var(--good-ink)}
+.btn-link{background:none;border:0;color:var(--accent);cursor:pointer;padding:4px 0;text-align:left;font-weight:500;text-decoration:underline}
+.bpick{margin:12px 0 6px;padding:12px 10px 0;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:4px}
+.bpick label{font-size:13.5px;color:var(--ink-3)}
+.bpick select{border:1px solid var(--line);border-radius:6px;padding:8px 10px;background:var(--surface);font-weight:600;width:100%;min-width:0}
+.navbtn{margin-top:10px;background:none;border:0;text-align:left;padding:8px 13px;color:var(--ink-2);cursor:pointer;font-weight:500;border-radius:6px;white-space:nowrap}
+.navbtn:hover{background:var(--sunken);color:var(--ink)}
+.top-b{font-size:16px}
+.top-t{color:var(--ink-2);font-weight:600}
+.blist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:hidden}
+.brow{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,4fr) minmax(0,3fr) auto;gap:16px;align-items:center;padding:14px 16px;border:0;border-top:1px solid var(--line);background:none;text-align:left;cursor:pointer;width:100%}
+.brow:first-child{border-top:0}
+.brow:hover{background:var(--sunken)}
+.brow b{display:block;font-size:17px;overflow-wrap:anywhere}
+.brow .sub{display:block}
+.brow .amt{text-align:right}
+.brow .go{color:var(--accent);font-weight:600}
+.steps{list-style:none;margin:0;padding:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);border:1px solid var(--line);border-radius:8px;background:var(--surface);overflow:hidden}
+.steps li{border-left:1px solid var(--line)}
+.steps li:first-child{border-left:0}
+.step{display:flex;gap:10px;align-items:center;padding:12px 14px;text-decoration:none;color:var(--ink);height:100%}
+.step:hover{background:var(--sunken)}
+.step .n{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;border:2px solid var(--line);color:var(--ink-2)}
+.step.done .n{background:var(--good);border-color:var(--good);color:#fff}
+.step.now{background:var(--accent-wash)}
+.step.now .n{border-color:var(--accent);color:var(--accent);background:var(--surface)}
+.step b{display:block;font-weight:600}
+.step .sub{display:block}
+.neg{color:var(--crit-ink)}
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side{position:static;height:auto;flex-direction:column;gap:10px;padding:12px 16px 0;border-right:0;border-bottom:1px solid var(--line)}
+  .brand{padding:0}
+  .brand-sub{display:none}
+  .nav{flex-direction:row;overflow-x:auto;gap:2px;margin:0 -16px;padding:0 16px}
+  .nav a{border-left:0;border-bottom:3px solid transparent;border-radius:6px 6px 0 0;white-space:nowrap;padding:8px 12px}
+  .nav a[aria-current="page"]{border-bottom-color:var(--accent)}
+  .save{margin:0;padding:0 0 8px;flex-direction:row;align-items:center}
+  .top{padding:10px 16px}
+  .banner{margin:12px 16px 0}
+  .view{padding:18px 16px 50px;gap:22px}
+  .band{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .fig:nth-child(3){border-left:0}
+  .fig:nth-child(n+3){border-top:1px solid var(--line)}
+  .cols,.util,.two{grid-template-columns:minmax(0,1fr)}
+  .bpick{margin:0;padding:0 8px;border-top:0;flex-direction:row;align-items:center;flex:none}
+  .bpick label{display:none}
+  .bpick select{width:auto;max-width:190px;padding:6px 8px}
+  .navbtn{margin:0}
+  .steps{grid-auto-flow:row}
+  .steps li{border-left:0;border-top:1px solid var(--line)}
+  .steps li:first-child{border-top:0}
+  .brow{grid-template-columns:minmax(0,1fr) auto;gap:6px 12px}
+  .brow .mid{grid-column:1/-1;grid-row:2}
+  .brow .go{display:none}
+  h1{font-size:24px}
+}
+@media (max-width:480px){
+  .fields{grid-template-columns:minmax(0,1fr)}
+  .month select{min-width:0;flex:1}
+  .fig{padding:12px 14px}.fig-v{font-size:21px}
+}
+@media (prefers-reduced-motion:no-preference){ .track > i{transition:width .4s ease} }
+</style>
+</head>
+<body>
+<div id="login" class="login" hidden>
+  <form class="login-card" data-form="login">
+    <h1>Rent ledger</h1>
+    <p class="sub">Sign in to open your buildings.</p>
+    <div class="field"><label for="lgEmail">Email</label><input id="lgEmail" name="email" type="email" autocomplete="username" required></div>
+    <div class="field"><label for="lgPass">Password</label><input id="lgPass" name="password" type="password" autocomplete="current-password" required></div>
+    <p class="login-msg" id="lgMsg" role="alert" hidden></p>
+    <button class="btn btn-primary" id="lgBtn">Sign in</button>
+    <button type="button" class="btn-link" data-act="forgot">Forgot your password?</button>
+  </form>
+</div>
+<div class="app" id="app">
+  <aside class="side">
+    <div class="brand"><div class="brand-name">Rent ledger</div><div class="brand-sub" id="userLine"></div></div>
+    <nav class="nav" id="nav" aria-label="Sections"></nav>
+    <div class="save" id="save" role="status"></div>
+  </aside>
+  <div class="main">
+    <header class="top" id="top"></header>
+    <div id="banner"></div>
+    <main class="view" id="view"><p class="loading">Opening your buildings…</p></main>
+  </div>
+</div>
+<div id="modal"></div>
+<div id="tip" class="tip" hidden></div>
+<div id="toast" class="toast" hidden role="status"></div>
+
+<script>
+/* Firebase settings go here (see README). While this is null the site shows sample data and saves nothing. */
+window.FIREBASE_CONFIG = null;
+</script>
+<script>
+(() => {
+'use strict';
+/* ---------- helpers ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clone = o => JSON.parse(JSON.stringify(o));
+const pad = n => String(n).padStart(2, '0');
+const r2 = n => Math.round((n + Number.EPSILON) * 100) / 100;
+const sumAmt = a => (a || []).reduce((t, x) => t + (Number(x.amount) || 0), 0);
+const baht = n => '฿' + (Number(n) || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const baht0 = n => '฿' + Math.round(Number(n) || 0).toLocaleString('en-US');
+const plain = n => (Number(n) || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const num = n => n == null ? '–' : Number(n).toLocaleString('en-US', {maximumFractionDigits: 1});
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MON = MONTHS.map(m => m.slice(0, 3));
+const TH = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+const iso = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+const todayIso = () => iso(new Date());
+const ymAdd = (ym, n) => { const [y, m] = ym.split('-').map(Number); const t = y * 12 + (m - 1) + n; return Math.floor(t / 12) + '-' + pad(t % 12 + 1); };
+const ymLong = ym => MONTHS[+ym.slice(5) - 1] + ' ' + ym.slice(0, 4);
+const ymShort = ym => MON[+ym.slice(5) - 1] + ' ' + ym.slice(2, 4);
+const ymThai = ym => TH[+ym.slice(5) - 1] + ' ' + (+ym.slice(0, 4) + 543);
+const dShort = s => { if (!s) return '–'; const [y, m, d] = s.split('-').map(Number); return d + ' ' + MON[m - 1] + ' ' + y; };
+const dThai = s => { if (!s) return '-'; const [y, m, d] = s.split('-').map(Number); return d + ' ' + TH[m - 1] + ' ' + (y + 543); };
+const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
+const numOrNull = v => { if (v === '' || v == null) return null; const n = Number(v); return Number.isFinite(n) ? n : null; };
+
+/* ---------- state ---------- */
+const DEFAULT_CFG = { name: 'My building', address: '', phone: '', elecMode: 'meter', elecRate: 4.5, waterRate: 16, waterMode: 'meter', waterMin: 0, waterFlat: 150, waterPerPerson: 100, dueDay: 5, lateFeePerDay: 50, payBank: '', payAccName: '', payAccNo: '', promptpay: '', invoiceNote: '' };
+const S = { backend: null, user: null, dl: null, isDemo: false, loadError: false, all: {}, bid: null, cfg: clone(DEFAULT_CFG), rooms: {}, periods: {}, expenses: {}, ym: null, view: 'home', roomId: null, billFilter: 'all', editPrev: false, histYear: null, histMetric: 'eUnits', expYear: null, profitYear: null };
+
+/* ---------- billing maths (one place, used by every screen) ---------- */
+function calc(p, rid) {
+  const r = p.rooms[rid];
+  const flat = p.waterMode !== 'meter', people = Math.max(1, Math.round(Number(r.people) || 1));
+  const eNone = p.elecMode === 'none';
+  const eUnits = (!eNone && r.eCur != null && r.ePrev != null) ? r2(r.eCur - r.ePrev) : null;
+  const wUnits = (r.wCur != null && r.wPrev != null) ? r2(r.wCur - r.wPrev) : null;
+  const eAmt = eUnits != null && eUnits >= 0 ? r2(eUnits * p.elecRate) : 0;
+  let wAmt = 0, wMinApplied = false;
+  if (p.waterMode === 'none') wAmt = 0;
+  else if (p.waterMode === 'person') wAmt = r.occupied ? r2(people * (Number(p.waterPerPerson) || 0)) : 0;
+  else if (flat) wAmt = r.occupied ? (Number(p.waterFlat) || 0) : 0;
+  else if (wUnits != null && wUnits >= 0) {
+    wAmt = r2(wUnits * p.waterRate);
+    const min = r.occupied ? (Number(p.waterMin) || 0) : 0;
+    if (wAmt < min) { wAmt = min; wMinApplied = true; }
+  }
+  const extras = r2(sumAmt(r.extras)), other = r2(sumAmt(r.other)), late = Number(r.lateFee) || 0;
+  const complete = (eNone || (eUnits != null && eUnits >= 0)) && (flat || (wUnits != null && wUnits >= 0));
+  const total = r.occupied ? r2((Number(r.rent) || 0) + eAmt + wAmt + extras + other + late) : 0;
+  const paid = r2(sumAmt(r.payments));
+  const balance = r2(total - paid);
+  let status;
+  if (!r.occupied) status = 'vacant';
+  else if (!complete) status = 'draft';
+  else if (balance <= 0.005) status = 'paid';
+  else if (todayIso() > p.dueDate) status = 'overdue';
+  else if (paid > 0) status = 'partial';
+  else status = 'due';
+  return { eUnits, wUnits, eAmt, wAmt, wMinApplied, extras, other, late, complete, total, paid, balance, status, flat, people, eNone };
+}
+const ymList = () => Object.keys(S.periods).sort();
+const roomList = () => Object.values(S.rooms).sort((a, b) => (a.floor - b.floor) || String(a.no).localeCompare(String(b.no), 'en', {numeric: true}));
+const periodRoomIds = p => Object.keys(p.rooms).sort((a, b) => String(p.rooms[a].no).localeCompare(String(p.rooms[b].no), 'en', {numeric: true}));
+function makePeriod(ym, from) {
+  const c = S.cfg;
+  const p = { ym, readDate: todayIso(), dueDate: ym + '-' + pad(Math.min(Math.max(1, Number(c.dueDay) || 5), 28)), issued: false,
+    elecMode: c.elecMode === 'none' ? 'none' : 'meter', elecRate: Number(c.elecRate) || 0, waterRate: Number(c.waterRate) || 0, waterMode: c.waterMode, waterMin: Number(c.waterMin) || 0, waterFlat: Number(c.waterFlat) || 0, waterPerPerson: Number(c.waterPerPerson) || 0,
+    lateFeePerDay: Number(c.lateFeePerDay) || 0, utility: { elecBill: null, elecUnits: null, waterBill: null, waterUnits: null }, rooms: {} };
+  if (p.dueDate < todayIso() && ym >= todayIso().slice(0, 7)) p.dueDate = iso(new Date(Date.now() + 7 * 864e5));
+  for (const room of roomList()) {
+    const prev = from && from.rooms[room.id];
+    p.rooms[room.id] = { no: room.no, occupied: !!room.tenant, tenant: room.tenant ? room.tenant.name : '', rent: Number(room.rent) || 0, people: Math.max(1, Number(room.people) || 1), extras: clone(room.extras || []),
+      ePrev: prev ? (prev.eCur != null ? prev.eCur : prev.ePrev) : (room.elecStart != null ? room.elecStart : 0), eCur: null,
+      wPrev: prev ? (prev.wCur != null ? prev.wCur : prev.wPrev) : (room.waterStart != null ? room.waterStart : 0), wCur: null,
+      other: [], lateFee: 0, payments: [] };
+  }
+  return p;
+}
+function makeEarlierPeriod(ym, next) {
+  const p = clone(next); p.ym = ym; p.issued = false; p.readDate = ymAdd(ym, -1) + '-28'; p.dueDate = ym + '-' + next.dueDate.slice(8);
+  p.utility = { elecBill: null, elecUnits: null, waterBill: null, waterUnits: null };
+  for (const id of Object.keys(p.rooms)) { const r = p.rooms[id], n = next.rooms[id]; r.eCur = n.ePrev; r.ePrev = null; r.wCur = n.wPrev; r.wPrev = null; r.other = []; r.lateFee = 0; r.payments = []; }
+  return p;
+}
+function roomSeries(rid) {
+  return ymList().filter(ym => S.periods[ym].rooms[rid]).map(ym => { const p = S.periods[ym]; return Object.assign({ ym, r: p.rooms[rid], p }, calc(p, rid)); });
+}
+function spikeFor(rid, ym) {
+  const ser = roomSeries(rid); const i = ser.findIndex(s => s.ym === ym); if (i < 0) return null;
+  const cur = ser[i].eUnits; if (cur == null) return null;
+  const prev = ser.slice(Math.max(0, i - 3), i).map(s => s.eUnits).filter(v => v != null && v >= 0);
+  if (prev.length < 2) return null;
+  const avg = prev.reduce((a, b) => a + b, 0) / prev.length;
+  if (avg > 0 && cur > avg * 1.5 && cur - avg >= 30) return { pct: Math.round((cur / avg - 1) * 100), avg: Math.round(avg) };
+  return null;
+}
+function syncLatest(roomId) {
+  const yms = ymList(); if (!yms.length) return;
+  const ym = yms[yms.length - 1], p = S.periods[ym], room = S.rooms[roomId];
+  if (p.issued) return;
+  if (!room) { return; }
+  let r = p.rooms[roomId];
+  if (!r) { r = p.rooms[roomId] = { no: room.no, occupied: false, tenant: '', rent: 0, extras: [], ePrev: room.elecStart != null ? room.elecStart : 0, eCur: null, wPrev: room.waterStart != null ? room.waterStart : 0, wCur: null, other: [], lateFee: 0, payments: [] }; }
+  if ((r.payments || []).length) return;
+  r.occupied = !!room.tenant; r.tenant = room.tenant ? room.tenant.name : ''; r.rent = Number(room.rent) || 0; r.people = Math.max(1, Number(room.people) || 1); r.extras = clone(room.extras || []);
+  persist(bpath('periods/' + ym));
+}
+
+/* ---------- sample building (shown until a real one is set up; never written to storage) ---------- */
+function loadDemo() {
+  let seed = 20261;
+  const rnd = () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  S.cfg = Object.assign(clone(DEFAULT_CFG), { name: 'Baan Tawan Apartment (sample)', address: '12/3 Sample Road, Khlong Luang, Pathum Thani 12120', phone: '02-000-0000', elecRate: 4.6, waterRate: 16, payBank: 'Sample Bank', payAccName: 'Baan Tawan Apartment', payAccNo: 'xxx-x-xxxxx-x', promptpay: '', invoiceNote: '' });
+  const names = ['Somchai Jaidee', 'Kanya Srisuk', 'Nattapong Wongsa', 'Ploy Chanthara', 'Anan Boonmee', 'Siriporn Kaewta', null, 'Wichai Thongdee', 'Mali Rattana', 'Krit Suwan', 'Pim Arunrat', null];
+  const now = new Date(); const last = now.getFullYear() + '-' + pad(now.getMonth() + 1); const first = ymAdd(last, -11);
+  S.rooms = {}; const base = {};
+  let k = 0;
+  for (let f = 1; f <= 3; f++) for (let n = 1; n <= 4; n++) {
+    const no = String(f * 100 + n), id = 'r' + no, name = names[k++];
+    S.rooms[id] = { id, no, floor: f, rent: 3900 + f * 300 + (n === 1 || n === 4 ? 300 : 0), people: 1 + (k % 3 === 0 ? 1 : 0), extras: n % 2 === 0 ? [{ name: 'Internet', amount: 300 }] : [], elecStart: 800 + Math.round(rnd() * 4000), waterStart: 100 + Math.round(rnd() * 600),
+      tenant: name ? { name, phone: '08' + String(10000000 + Math.floor(rnd() * 89999999)), moveIn: ymAdd(first, -Math.floor(rnd() * 14) - 1) + '-01', leaseEnd: ymAdd(last, (id === 'r102' ? 0 : 2 + Math.floor(rnd() * 9))) + '-28', deposit: (3900 + f * 300) * 2, note: '' } : null };
+    base[id] = { e: 85 + rnd() * 120, w: 4 + rnd() * 7 };
+  }
+  const season = [0.8, 0.82, 0.95, 1.25, 1.45, 1.35, 1.15, 1.1, 1.05, 1.0, 0.95, 0.85];
+  S.periods = {}; let prev = null;
+  for (let i = 0; i < 12; i++) {
+    const ym = ymAdd(first, i), isLast = i === 11; const p = makePeriod(ym, prev);
+    const usageMonth = (+ym.slice(5) + 10) % 12; // meters are read at the end of the month before
+    p.readDate = ymAdd(ym, -1) + '-28'; p.dueDate = ym + '-05'; p.issued = true;
+    let eTot = 0, wTot = 0;
+    for (const id of Object.keys(p.rooms)) {
+      const r = p.rooms[id], vacantNow = !S.rooms[id].tenant;
+      if (id === 'r304' && i < 8) { r.occupied = true; r.tenant = 'Thana Phromma'; r.rent = S.rooms[id].rent; }
+      const occ = r.occupied;
+      let e = Math.round(base[id].e * season[usageMonth] * (0.88 + rnd() * 0.24) * (occ ? 1 : 0.04));
+      if (isLast && id === 'r202') e = Math.round(e * 2.1);
+      const w = occ ? Math.max(1, Math.round(base[id].w * (0.8 + rnd() * 0.4))) : 0;
+      r.eCur = r.ePrev + e; r.wCur = r.wPrev + w; eTot += e; wTot += w;
+      if (!occ || vacantNow && !occ) continue;
+      const c = calc(p, id);
+      if (!isLast) {
+        const lateDays = (id === 'r104' && i === 10) ? 6 : 0;
+        if (lateDays) { r.lateFee = lateDays * p.lateFeePerDay; }
+        const d = new Date(Date.parse(p.dueDate) + (lateDays ? lateDays : Math.floor(rnd() * 5) - 4) * 864e5);
+        r.payments = [{ date: iso(d), amount: r2(c.total + (r.lateFee || 0)), method: rnd() > 0.3 ? 'Bank transfer' : 'Cash' }];
+      } else {
+        if (id === 'r102') r.payments = [{ date: ym + '-03', amount: 3000, method: 'Bank transfer' }];
+        else if (!['r201', 'r303', 'r301'].includes(id)) r.payments = [{ date: ym + '-0' + (1 + Math.floor(rnd() * 5)), amount: c.total, method: rnd() > 0.3 ? 'Bank transfer' : 'Cash' }];
+      }
+    }
+    const eu = Math.round(eTot * 1.08), wu = Math.round(wTot * 1.05);
+    p.utility = { elecBill: r2(eu * 4.42), elecUnits: eu, waterBill: r2(wu * 14.5), waterUnits: wu };
+    S.periods[ym] = p; prev = p;
+  }
+  S.isDemo = true;
+}
+
+/* ---------- storage ---------- */
+const pending = {};
+const WH = '*';
+const UC = no => no === WH ? 'Whole building' : 'Room ' + esc(no);
+const U = no => no === WH ? 'the building' : 'room ' + esc(no);
+const UT = no => no === WH ? 'ทั้งอาคาร' : 'ห้อง ' + esc(no);
+const N = no => no === WH ? 'Whole building' : no;
+const hasMeters = c => (c.elecMode || 'meter') === 'meter' || c.waterMode === 'meter';
+const curKind = () => (S.all[S.bid] || {}).kind || 'rooms';
+const buildingIds = () => Object.keys(S.all).sort((a, b) => String(S.all[a].cfg.name).localeCompare(String(S.all[b].cfg.name)));
+const bpath = sub => 'buildings/' + S.bid + (sub ? '/' + sub : '');
+function docData(path) {
+  const seg = path.split('/'), B = S.all[seg[1]]; if (!B) return undefined;
+  if (seg.length === 2) return { kind: B.kind, memberEmails: clone(B.memberEmails || []), cfg: clone(B.cfg), rooms: clone(B.rooms) };
+  if (seg[2] === 'periods') return B.periods[seg[3]] ? clone(B.periods[seg[3]]) : undefined;
+  if (seg[2] === 'expenses') return (B.expenses[seg[3]] || []).length ? { items: clone(B.expenses[seg[3]]) } : undefined;
+  return undefined;
+}
+function persist(path) {
+  if (!S.backend || S.isDemo) { renderSave(); return; }
+  const q = pending[path] || (pending[path] = {}); q.dirty = true; clearTimeout(q.timer); q.timer = setTimeout(() => flush(path), 500); renderSave();
+}
+async function flush(path) {
+  const q = pending[path]; if (!q || q.running) return; q.running = true;
+  while (q.dirty) {
+    q.dirty = false;
+    try { const data = docData(path); if (data === undefined) await S.backend.del(path); else await S.backend.set(path, data); q.failed = false; }
+    catch (e) { q.failed = true; q.code = e && e.code; break; }
+  }
+  q.running = false; renderSave();
+}
+function persistAll() { const B = S.all[S.bid]; if (!B) return; persist(bpath()); Object.keys(B.periods).forEach(ym => persist(bpath('periods/' + ym))); Object.keys(B.expenses).forEach(y => persist(bpath('expenses/' + y))); }
+function renderSave() {
+  const el = $('#save'); let cls = '', html;
+  const qs = Object.values(pending);
+  if (S.isDemo) html = '<b>Sample data</b><span>Nothing is saved.</span>';
+  else if (qs.some(q => q.failed)) { cls = 'bad'; html = '<b>Could not save</b><span>' + (qs.some(q => q.code === 'permission-denied') ? 'This account is not allowed to change this building.' : 'Check your connection.') + '</span><button class="btn btn-sm" data-act="retry-save">Save again</button>'; }
+  else if (qs.some(q => q.dirty || q.running)) html = '<b>Saving…</b>';
+  else html = '<b>All changes saved</b>';
+  el.className = 'save ' + cls; el.innerHTML = html;
+}
+const withTimeout = (pr, ms) => Promise.race([pr, new Promise((_, rej) => setTimeout(() => rej({ code: 'timeout' }), ms))]);
+function saveFile(o) {
+  return new Promise((res, rej) => {
+    try {
+      const blob = o.data instanceof Blob ? o.data : new Blob([o.data], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = o.filename; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000); res({ status: 'saved' });
+    } catch (e) { rej(e); }
+  });
+}
+
+/* ---------- sign-in and loading (Firebase) ---------- */
+let FB = null;
+async function initFirebase() {
+  if (window.__TEST_FB) return window.__TEST_FB; // stand-in used by the automated tests
+  const base = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  const [app, auth, fs] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
+  const a = app.initializeApp(window.FIREBASE_CONFIG), au = auth.getAuth(a), db = fs.getFirestore(a);
+  return {
+    onAuth: cb => auth.onAuthStateChanged(au, cb),
+    signIn: (e, p) => auth.signInWithEmailAndPassword(au, e, p),
+    signOut: () => auth.signOut(au),
+    reset: e => auth.sendPasswordResetEmail(au, e),
+    backend: {
+      async listBuildings(email) { const s = await fs.getDocs(fs.query(fs.collection(db, 'buildings'), fs.where('memberEmails', 'array-contains', email))); return s.docs.map(d => ({ id: d.id, data: d.data() })); },
+      async listSub(bid, sub) { const s = await fs.getDocs(fs.collection(db, 'buildings/' + bid + '/' + sub)); return s.docs.map(d => ({ id: d.id, data: d.data() })); },
+      set: (path, data) => fs.setDoc(fs.doc(db, path), data),
+      del: path => fs.deleteDoc(fs.doc(db, path))
+    }
+  };
+}
+function showState(s) { $('#login').hidden = s !== 'login'; $('#app').hidden = s !== 'app'; }
+function loginMsg(text, ok) { const m = $('#lgMsg'); m.textContent = text || ''; m.hidden = !text; m.classList.toggle('ok', !!ok); }
+async function boot() {
+  S.dl = { save: async o => { if (window.claude && window.claude.use) { const d = await Promise.resolve().then(() => window.claude.use('downloads')).catch(() => null); if (d) return d.save(o); } return saveFile(o); } };
+  if (!window.FIREBASE_CONFIG && !window.__TEST_FB) { loadDemoAll(); showState('app'); route(); return; }
+  showState('app'); $('#view').innerHTML = '<p class="loading">Connecting…</p>';
+  try { FB = await withTimeout(initFirebase(), 20000); }
+  catch (e) { $('#view').innerHTML = '<div class="empty"><p>The site could not connect. Check your internet connection, then reload this page.</p></div>'; return; }
+  FB.onAuth(user => {
+    Object.keys(pending).forEach(k => delete pending[k]);
+    if (!user) { S.user = null; S.backend = null; S.all = {}; openBuilding(null); closeModal(); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} showState('login'); return; }
+    S.user = { email: String(user.email || '').toLowerCase() }; S.backend = FB.backend; loadAll();
+  });
+}
+async function loadAll() {
+  showState('app'); $('#nav').innerHTML = ''; $('#top').innerHTML = ''; $('#banner').innerHTML = ''; $('#view').innerHTML = '<p class="loading">Opening your buildings…</p>';
+  S.isDemo = false; S.loadError = false; S.all = {};
+  try {
+    const bs = await withTimeout(S.backend.listBuildings(S.user.email), 20000);
+    await withTimeout(Promise.all(bs.map(async b => {
+      const [ps, es] = await Promise.all([S.backend.listSub(b.id, 'periods'), S.backend.listSub(b.id, 'expenses')]);
+      const B = { id: b.id, kind: b.data.kind === 'whole' ? 'whole' : 'rooms', memberEmails: clone(b.data.memberEmails || []), cfg: Object.assign(clone(DEFAULT_CFG), clone(b.data.cfg || {})), rooms: clone(b.data.rooms || {}), periods: {}, expenses: {} };
+      ps.forEach(d => { B.periods[d.id] = clone(d.data); }); es.forEach(d => { B.expenses[d.id] = clone(d.data.items || []); });
+      S.all[b.id] = B;
+    })), 30000);
+  } catch (e) { S.loadError = true; S.all = {}; }
+  const ids = buildingIds(); openBuilding(ids.length === 1 ? ids[0] : null);
+  if (ids.length !== 1 && location.hash !== '#profit') { if (location.hash === '#home') route(); else location.hash = '#home'; } else route();
+}
+function openBuilding(bid) {
+  const B = S.all[bid];
+  if (!B) { S.bid = null; S.cfg = clone(DEFAULT_CFG); S.rooms = {}; S.periods = {}; S.expenses = {}; S.ym = null; return; }
+  S.bid = bid; S.cfg = B.cfg; S.rooms = B.rooms; S.periods = B.periods; S.expenses = B.expenses; S.editPrev = false; S.billFilter = 'all'; S.histMetric = hasMeters(B.cfg) ? 'eUnits' : 'total'; pickMonth();
+}
+function pickMonth() {
+  const yms = ymList(); const cur = todayIso().slice(0, 7);
+  S.ym = yms.length ? (yms.filter(y => y <= cur).pop() || yms[yms.length - 1]) : null;
+  S.histYear = S.ym ? S.ym.slice(0, 4) : String(new Date().getFullYear());
+}
+function loadDemoAll() {
+  loadDemo();
+  const cur = todayIso().slice(0, 7), mk = (m, d, cat, amount, note, room) => ({ id: 'd' + m + '-' + d + cat + amount, date: ymAdd(cur, -m) + '-' + pad(d), cat, amount, note, room: room || '' });
+  const byYear = list => { const o = {}; list.forEach(e => { (o[e.date.slice(0, 4)] = o[e.date.slice(0, 4)] || []).push(e); }); return o; };
+  const A1 = { id: 'demoA', kind: 'rooms', memberEmails: [], cfg: S.cfg, rooms: S.rooms, periods: S.periods,
+    expenses: byYear([mk(0, 8, 'repair', 1800, 'Water pump repair'), mk(0, 2, 'clean', 2500, 'Monthly cleaning'), mk(1, 2, 'clean', 2500, 'Monthly cleaning'), mk(1, 17, 'repair', 950, 'Air conditioner service', 'r202'), mk(2, 2, 'clean', 2500, 'Monthly cleaning'), mk(3, 11, 'supply', 3200, 'Hallway lights'), mk(5, 20, 'tax', 14800, 'Land and building tax'), mk(6, 9, 'repair', 6400, 'Roof leak')]) };
+  const cfgB = Object.assign(clone(DEFAULT_CFG), { name: 'Rangsit Townhouse (sample)', address: '45 Sample Lane, Thanyaburi, Pathum Thani 12110', elecMode: 'none', waterMode: 'none', payBank: 'Sample Bank', payAccName: 'Rangsit Townhouse', payAccNo: 'xxx-x-xxxxx-x' });
+  const roomsB = { whole: { id: 'whole', no: WH, floor: 1, rent: 28000, people: 1, extras: [], elecStart: 0, waterStart: 0, tenant: { name: 'Siam Craft Studio Co., Ltd.', phone: '02-000-0001', deposit: 56000, moveIn: ymAdd(cur, -14) + '-01', leaseEnd: ymAdd(cur, 10) + '-28', note: '' } } };
+  S.cfg = cfgB; S.rooms = roomsB; const perB = {}; let prev = null;
+  for (let i = 11; i >= 0; i--) { const ym = ymAdd(cur, -i), p = makePeriod(ym, prev); p.readDate = ymAdd(ym, -1) + '-28'; p.dueDate = ym + '-05'; p.issued = true; if (i > 0) p.rooms.whole.payments = [{ date: ym + '-04', amount: 28000, method: 'Bank transfer' }]; perB[ym] = p; prev = p; }
+  const B1 = { id: 'demoB', kind: 'whole', memberEmails: [], cfg: cfgB, rooms: roomsB, periods: perB, expenses: byYear([mk(1, 14, 'repair', 4200, 'Front gate motor'), mk(4, 20, 'tax', 9600, 'Land and building tax'), mk(7, 6, 'insure', 5300, 'Fire insurance')]) };
+  S.all = { demoA: A1, demoB: B1 }; S.isDemo = true; openBuilding(null);
+}
+
+/* ---------- money across months and buildings ---------- */
+const CATS = [['repair', 'Repairs and maintenance'], ['tax', 'Tax'], ['clean', 'Cleaning'], ['insure', 'Insurance'], ['wage', 'Wages'], ['supply', 'Supplies and equipment'], ['fee', 'Fees and services'], ['other', 'Other']];
+const CAT = Object.assign({ utility: 'Electricity and water bills' }, Object.fromEntries(CATS));
+const utilPaid = p => { const u = p.utility || {}; return (Number(u.elecBill) || 0) + (Number(u.waterBill) || 0); };
+function yearMoney(B, year) {
+  const months = {}; for (let i = 1; i <= 12; i++) months[year + '-' + pad(i)] = { income: 0, collected: 0, exp: 0 };
+  const cats = {}; let income = 0, collected = 0, exp = 0, util = 0;
+  Object.keys(B.periods).forEach(ym => { if (ym.slice(0, 4) !== year) return; const p = B.periods[ym], t = monthTotals(p), u = utilPaid(p); months[ym].income += t.billed; months[ym].collected += t.collected; months[ym].exp += u; income += t.billed; collected += t.collected; exp += u; util += u; });
+  (B.expenses[year] || []).forEach(e => { const a = Number(e.amount) || 0, k = String(e.date || '').slice(0, 7); if (months[k]) months[k].exp += a; exp += a; cats[e.cat] = (cats[e.cat] || 0) + a; });
+  if (util) cats.utility = util;
+  return { months, cats, income: r2(income), collected: r2(collected), exp: r2(exp), util: r2(util), profit: r2(income - exp) };
+}
+function yearsOf(list) {
+  const ys = new Set([String(new Date().getFullYear())]);
+  list.forEach(B => { Object.keys(B.periods).forEach(ym => ys.add(ym.slice(0, 4))); Object.keys(B.expenses).forEach(y => { if ((B.expenses[y] || []).length) ys.add(y); }); });
+  return Array.from(ys).sort();
+}
+const money = n => '<span class="' + (n < -0.005 ? 'neg' : '') + '">' + (n < -0.005 ? '−' : '') + plain(Math.abs(n)) + '</span>';
+
+/* ---------- small UI parts ---------- */
+function drum(v, kind, lg) {
+  let cells;
+  if (v == null) cells = '<b>–</b><b>–</b><b>–</b><b>–</b><b>–</b>';
+  else { const t = Math.round(Math.abs(v) * 10); const int = String(Math.floor(t / 10)).padStart(5, '0'); cells = int.split('').map(d => '<b>' + d + '</b>').join('') + '<b class="t">' + (t % 10) + '</b>'; }
+  return '<span class="drum' + (kind === 'w' ? ' w' : '') + (lg ? ' lg' : '') + '" role="img" aria-label="' + (v == null ? 'no reading' : 'reading ' + v) + '">' + cells + '</span>';
+}
+const STATUS = { paid: ['paid', '✓', 'Paid'], due: ['due', '•', 'Due'], partial: ['partial', '½', 'Part paid'], overdue: ['overdue', '!', 'Overdue'], draft: ['draft', '…', 'Needs readings'], vacant: ['vacant', '–', 'Vacant'] };
+function pill(c) { const s = STATUS[c.status]; let label = s[2]; if (c.status === 'overdue' && c.paid > 0) label = 'Overdue, part paid'; return '<span class="pill ' + s[0] + '"><i>' + s[1] + '</i>' + label + '</span>'; }
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => { t.hidden = true; }, 2600); }
+function openModal(html, wide) {
+  $('#modal').innerHTML = '<div class="modal-bg" data-act="close-bg"><div class="modal' + (wide ? ' wide' : '') + '" role="dialog" aria-modal="true">' + html + '</div></div>';
+  const f = $('#modal input:not([type=hidden]), #modal select, #modal button'); if (f) f.focus();
+}
+function closeModal() { $('#modal').innerHTML = ''; }
+function confirmModal(title, body, okLabel, act, extra) {
+  openModal('<div class="modal-head"><h2>' + esc(title) + '</h2></div><p class="sub">' + esc(body) + '</p><div class="modal-foot"><button class="btn" data-act="close">Cancel</button><button class="btn btn-primary" data-act="' + act + '" ' + (extra || '') + '>' + esc(okLabel) + '</button></div>');
+}
+
+/* ---------- shell ---------- */
+const MONTH_VIEWS = ['overview', 'meters', 'bills'];
+const B_VIEWS = ['overview', 'meters', 'bills', 'rooms', 'expenses', 'history', 'building'];
+function route() {
+  const h = (location.hash || '').replace('#', '');
+  if (h.indexOf('room-') === 0 && S.bid && S.rooms[h.slice(5)]) { S.view = 'room'; S.roomId = h.slice(5); }
+  else if (h === 'profit') S.view = 'profit';
+  else if (h === 'home' || !S.bid) S.view = 'home';
+  else S.view = B_VIEWS.includes(h) ? h : 'overview';
+  if (S.view === 'rooms' && curKind() === 'whole' && S.rooms.whole) { S.view = 'room'; S.roomId = 'whole'; }
+  if (S.view === 'meters' && !hasMeters(S.cfg) && !ymList().some(y => (S.periods[y].elecMode || 'meter') === 'meter' || S.periods[y].waterMode === 'meter')) S.view = 'bills';
+  render(); window.scrollTo(0, 0);
+}
+function navHtml() {
+  const B = S.all[S.bid], on = k => k === S.view || (S.view === 'room' && k === 'rooms');
+  const link = (k, label, href) => '<a href="#' + (href || k) + '" data-nav="' + k + '"' + (on(k) ? ' aria-current="page"' : '') + '>' + label + '</a>';
+  let h = link('home', 'All buildings') + link('profit', 'Profit report');
+  const ids = buildingIds();
+  if (ids.length) h += '<div class="bpick"><label for="bsel">Building</label><select id="bsel">' + (S.bid ? '' : '<option value="">Choose a building</option>') + ids.map(id => '<option value="' + id + '"' + (id === S.bid ? ' selected' : '') + '>' + esc(S.all[id].cfg.name) + '</option>').join('') + '</select></div>';
+  if (B) h += link('overview', 'Overview') + (hasMeters(B.cfg) ? link('meters', 'Meter readings') : '') + link('bills', 'Bills') + (B.kind === 'whole' ? link('rooms', 'Tenant', 'room-whole') : link('rooms', 'Rooms')) + link('expenses', 'Expenses') + link('history', 'History') + link('building', 'Building and rates');
+  if (S.user) h += '<button class="navbtn" data-act="sign-out">Sign out</button>';
+  return h;
+}
+function render() {
+  $('#userLine').textContent = S.user ? S.user.email : (S.isDemo ? 'Sample data' : '');
+  $('#nav').innerHTML = navHtml();
+  renderTop(); renderBanner(); renderSave();
+  $('#view').innerHTML = ({ home: vHome, profit: vProfit, overview: vOverview, meters: vMeters, bills: vBills, rooms: vRooms, room: vRoom, expenses: vExpenses, history: vHistory, building: vBuilding })[S.view]();
+  mountCharts();
+}
+function renderTop() {
+  const yms = ymList(), inB = S.bid && S.view !== 'home' && S.view !== 'profit'; let html = inB ? '<b class="top-b">' + esc(S.cfg.name) + '</b>' : '';
+  if (inB && MONTH_VIEWS.includes(S.view) && yms.length) {
+    const i = yms.indexOf(S.ym);
+    html += '<div class="month"><button class="icon-btn" data-act="month-step" data-d="-1" aria-label="Previous month" ' + (i <= 0 ? 'disabled' : '') + '>‹</button>' +
+      '<select id="monthSel" aria-label="Month">' + yms.slice().reverse().map(y => '<option value="' + y + '"' + (y === S.ym ? ' selected' : '') + '>' + ymLong(y) + '</option>').join('') + '</select>' +
+      '<button class="icon-btn" data-act="month-step" data-d="1" aria-label="Next month" ' + (i >= yms.length - 1 ? 'disabled' : '') + '>›</button></div>';
+    html += '<span class="top-space"></span>';
+    if (i === yms.length - 1) html += '<button class="btn" data-act="start-month">Start ' + ymLong(ymAdd(S.ym, 1)) + '</button>';
+  } else {
+    const t = { home: 'All buildings', profit: 'Profit report', rooms: 'Rooms', room: curKind() === 'whole' ? 'Tenant' : 'Rooms', expenses: 'Expenses', history: 'History', building: 'Building and rates' }[S.view] || '';
+    html += '<span class="top-t">' + t + '</span><span class="top-space"></span>';
+  }
+  $('#top').innerHTML = html;
+}
+function renderBanner() {
+  let html = '';
+  if (S.loadError) html = '<div class="banner"><p><b>Your buildings could not be loaded.</b> Check your internet connection.</p><button class="btn" data-act="reboot">Try again</button></div>';
+  else if (S.isDemo) html = '<div class="banner"><p><b>This is a sample with two buildings.</b> Look around and try things. Nothing here is saved.</p></div>';
+  $('#banner').innerHTML = html;
+}
+function noMonths() {
+  const whole = curKind() === 'whole';
+  return '<div class="head"><div><h1>No months yet</h1><p class="sub">' + (whole ? 'Add the tenant first, then start the first month to make the bill.' : 'Set each room’s rent and add your tenants first, then start the first month.') + '</p></div></div>' +
+    '<div class="empty"><p>Bills are made month by month. Starting a month copies the rent' + (hasMeters(S.cfg) ? ' and the last meter readings' : '') + '.</p><div class="actions"><a class="btn" href="' + (whole ? '#room-whole">Add the tenant' : '#rooms">Go to rooms') + '</a><button class="btn btn-primary" data-act="start-first">Start ' + ymLong(todayIso().slice(0, 7)) + '</button></div></div>';
+}
+
+/* ---------- All buildings ---------- */
+function buildingNow(B) {
+  const yms = Object.keys(B.periods).sort(), cur = todayIso().slice(0, 7), ym = yms.filter(y => y <= cur).pop() || yms[yms.length - 1] || null;
+  const rooms = Object.values(B.rooms), occ = rooms.filter(r => r.tenant).length; let owed = 0, overdue = 0, need = 0, unpaid = 0;
+  yms.forEach(y => { const p = B.periods[y]; Object.keys(p.rooms).forEach(id => { if (!p.rooms[id].occupied) return; const c = calc(p, id); if (!c.complete) { if (y === ym) need++; return; } if (c.balance > 0.005) { owed += c.balance; unpaid++; if (c.status === 'overdue') overdue++; } }); });
+  return { ym, rooms: rooms.length, occ, owed: r2(owed), overdue, need, unpaid };
+}
+function vHome() {
+  const ids = buildingIds(), year = String(new Date().getFullYear()); let inc = 0, exp = 0, owed = 0;
+  const rows = ids.map(id => {
+    const B = S.all[id], n = buildingNow(B), m = yearMoney(B, year); inc += m.income; exp += m.exp; owed += n.owed;
+    const t = B.kind === 'whole' ? Object.values(B.rooms)[0] && Object.values(B.rooms)[0].tenant : null;
+    const kind = B.kind === 'whole' ? 'Whole building, ' + (t ? esc(t.name) || 'tenant has no name yet' : 'vacant') : n.rooms + (n.rooms === 1 ? ' room, ' : ' rooms, ') + n.occ + ' occupied';
+    let st;
+    if (!n.ym) st = '<span class="pill draft"><i>…</i>No month started</span>';
+    else if (n.need) st = '<span class="pill partial"><i>!</i>' + n.need + (n.need === 1 ? ' meter to read' : ' meters to read') + '</span>';
+    else if (n.overdue) st = '<span class="pill overdue"><i>!</i>' + n.overdue + ' overdue</span>';
+    else if (n.unpaid) st = '<span class="pill due"><i>•</i>' + n.unpaid + ' unpaid</span>';
+    else st = '<span class="pill paid"><i>✓</i>All paid</span>';
+    return '<button class="brow" data-act="open-building" data-bid="' + id + '"><span><b>' + esc(B.cfg.name) + '</b><span class="sub">' + kind + '</span></span>' +
+      '<span class="mid"><span class="sub">' + (n.ym ? ymLong(n.ym) : 'Not started') + '</span> ' + st + '</span><span class="amt"><span class="sub">To collect</span><b>' + baht0(n.owed) + '</b></span><span class="go">Open</span></button>';
+  }).join('');
+  if (!ids.length) return '<div class="head"><div><h1>Your buildings</h1><p class="sub">Each building keeps its own rooms, bills and expenses.</p></div></div>' + (S.loadError ? '' : '<div class="empty"><p>No buildings yet. Add the first one to get started.</p><button class="btn btn-primary" data-act="add-building">Add a building</button></div>');
+  return '<div class="head"><div><h1>Your buildings</h1><p class="sub">' + ids.length + (ids.length === 1 ? ' building' : ' buildings') + '. Select one to open it.</p></div><div class="actions"><button class="btn" data-act="add-building">Add a building</button></div></div>' +
+    '<section class="band" aria-label="All buildings, ' + year + '">' +
+    '<div class="fig"><div class="fig-l">Income, ' + year + '</div><div class="fig-v">' + baht0(inc) + '</div><div class="fig-s">Billed so far</div></div>' +
+    '<div class="fig"><div class="fig-l">Expenses, ' + year + '</div><div class="fig-v">' + baht0(exp) + '</div><div class="fig-s">Recorded so far</div></div>' +
+    '<div class="fig"><div class="fig-l">Profit, ' + year + '</div><div class="fig-v' + (inc - exp < 0 ? ' neg' : '') + '">' + (inc - exp < 0 ? '−' : '') + baht0(Math.abs(inc - exp)) + '</div><div class="fig-s"><a href="#profit">See the profit report</a></div></div>' +
+    '<div class="fig"><div class="fig-l">Still to collect</div><div class="fig-v">' + baht0(owed) + '</div><div class="fig-s">All unpaid bills</div></div></section>' +
+    '<div class="blist">' + rows + '</div>';
+}
+
+/* ---------- Profit report ---------- */
+function vProfit() {
+  const ids = buildingIds(), Bs = ids.map(id => S.all[id]), years = yearsOf(Bs); if (!years.includes(S.profitYear)) S.profitYear = String(new Date().getFullYear());
+  const y = S.profitYear, ms = Bs.map(B => yearMoney(B, y)), sum = k => r2(ms.reduce((a, m) => a + m[k], 0));
+  if (!ids.length) return '<div class="head"><div><h1>Profit report</h1><p class="sub">Add a building first.</p></div></div>';
+  const cats = {}; ms.forEach(m => Object.keys(m.cats).forEach(k => { cats[k] = (cats[k] || 0) + m.cats[k]; }));
+  const keys = Object.keys(ms[0].months), mrow = keys.map(k => ({ k, income: ms.reduce((a, m) => a + m.months[k].income, 0), exp: ms.reduce((a, m) => a + m.months[k].exp, 0) })).filter(r => r.income || r.exp);
+  return '<div class="head"><div><h1>Profit report</h1><p class="sub">Income is what you billed. Expenses are what you recorded, plus the building’s own electricity and water bills.</p></div>' +
+    '<div class="chips" role="group" aria-label="Year">' + years.map(v => '<button class="chip" data-act="profit-year" data-k="' + v + '" aria-pressed="' + (v === y) + '">' + v + '</button>').join('') + '</div></div>' +
+    '<section class="band" aria-label="' + y + '"><div class="fig"><div class="fig-l">Income</div><div class="fig-v">' + baht0(sum('income')) + '</div><div class="fig-s">Billed in ' + y + '</div></div>' +
+    '<div class="fig"><div class="fig-l">Expenses</div><div class="fig-v">' + baht0(sum('exp')) + '</div><div class="fig-s">Recorded in ' + y + '</div></div>' +
+    '<div class="fig"><div class="fig-l">Profit</div><div class="fig-v' + (sum('profit') < 0 ? ' neg' : '') + '">' + (sum('profit') < 0 ? '−' : '') + baht0(Math.abs(sum('profit'))) + '</div><div class="fig-s">Income minus expenses</div></div>' +
+    '<div class="fig"><div class="fig-l">Collected</div><div class="fig-v">' + baht0(sum('collected')) + '</div><div class="fig-s">Money actually received</div></div></section>' +
+    '<section class="sec"><h2>By building</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Building</th><th class="num">Income</th><th class="num">Collected</th><th class="num">Expenses</th><th class="num">Profit (฿)</th></tr></thead><tbody>' +
+    ids.map((id, i) => '<tr class="clickable" tabindex="0" data-act="open-building" data-bid="' + id + '"><th scope="row">' + esc(S.all[id].cfg.name) + '</th><td class="num">' + plain(ms[i].income) + '</td><td class="num">' + plain(ms[i].collected) + '</td><td class="num">' + plain(ms[i].exp) + '</td><td class="num"><b>' + money(ms[i].profit) + '</b></td></tr>').join('') +
+    '</tbody><tfoot><tr><th>All buildings</th><td class="num">' + plain(sum('income')) + '</td><td class="num">' + plain(sum('collected')) + '</td><td class="num">' + plain(sum('exp')) + '</td><td class="num">' + money(sum('profit')) + '</td></tr></tfoot></table></div></section>' +
+    '<div class="two"><section class="sec"><h2>Month by month</h2>' + (mrow.length ? '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Month</th><th class="num">Income</th><th class="num">Expenses</th><th class="num">Profit (฿)</th></tr></thead><tbody>' +
+      mrow.map(r => '<tr><th scope="row">' + ymLong(r.k) + '</th><td class="num">' + plain(r.income) + '</td><td class="num">' + plain(r.exp) + '</td><td class="num"><b>' + money(r2(r.income - r.exp)) + '</b></td></tr>').join('') + '</tbody></table></div>' : '<div class="empty"><p>Nothing recorded in ' + y + ' yet.</p></div>') + '</section>' +
+    '<section class="sec"><h2>Where the money went</h2>' + (Object.keys(cats).length ? '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Expense</th><th class="num">Amount (฿)</th></tr></thead><tbody>' +
+      Object.keys(cats).sort((a, b) => cats[b] - cats[a]).map(k => '<tr><th scope="row">' + esc(CAT[k] || 'Other') + '</th><td class="num">' + plain(cats[k]) + '</td></tr>').join('') + '</tbody><tfoot><tr><th>All expenses</th><td class="num">' + plain(sum('exp')) + '</td></tr></tfoot></table></div>' : '<div class="empty"><p>No expenses recorded in ' + y + '.</p></div>') + '</section></div>';
+}
+
+/* ---------- Expenses ---------- */
+function expenseFields(e, px) {
+  const whole = curKind() === 'whole', f = (id, label, inner) => '<div class="field"><label for="' + px + id + '">' + label + '</label>' + inner + '</div>';
+  return f('date', 'Date', '<input id="' + px + 'date" name="date" type="date" required value="' + esc(e.date || todayIso()) + '">') +
+    f('cat', 'What it was for', '<select id="' + px + 'cat" name="cat">' + CATS.map(c => '<option value="' + c[0] + '"' + (c[0] === (e.cat || 'repair') ? ' selected' : '') + '>' + c[1] + '</option>').join('') + '</select>') +
+    f('amount', 'Amount (฿)', '<input id="' + px + 'amount" name="amount" type="number" step="any" min="0.01" required value="' + esc(e.amount != null ? e.amount : '') + '">') +
+    (whole ? '' : f('room', 'Room (optional)', '<select id="' + px + 'room" name="room"><option value="">Whole building</option>' + roomList().map(r => '<option value="' + r.id + '"' + (r.id === e.room ? ' selected' : '') + '>' + esc(N(r.no)) + '</option>').join('') + '</select>')) +
+    '<div class="field full"><label for="' + px + 'note">Note</label><input id="' + px + 'note" name="note" maxlength="200" placeholder="Fixed the water pump" value="' + esc(e.note || '') + '"></div>';
+}
+function vExpenses() {
+  const B = S.all[S.bid], years = yearsOf([B]); if (!years.includes(S.expYear)) S.expYear = String(new Date().getFullYear());
+  const y = S.expYear, items = (B.expenses[y] || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date))), m = yearMoney(B, y), own = r2(m.exp - m.util);
+  return '<div class="head"><div><h1>Expenses</h1><p class="sub">Write down everything you pay for this building: repairs, tax, cleaning and so on. It all goes into the profit report.</p></div>' +
+    '<div class="chips" role="group" aria-label="Year">' + years.map(v => '<button class="chip" data-act="exp-year" data-k="' + v + '" aria-pressed="' + (v === y) + '">' + v + '</button>').join('') + '</div></div>' +
+    '<form class="panel" data-form="expense"><h2>Add an expense</h2><div class="fields">' + expenseFields({}, 'ex-') + '</div><div class="actions"><button class="btn btn-primary">Add expense</button></div></form>' +
+    '<section class="sec"><h2>Expenses in ' + y + '</h2>' + (items.length ? '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Date</th><th>What for</th><th>Note</th><th class="num">Amount (฿)</th><th></th></tr></thead><tbody>' +
+      items.map(e => '<tr><th scope="row">' + dShort(e.date) + '</th><td>' + esc(CAT[e.cat] || 'Other') + (e.room && S.rooms[e.room] ? '<div class="sub">Room ' + esc(S.rooms[e.room].no) + '</div>' : '') + '</td><td>' + esc(e.note) + '</td><td class="num"><b>' + plain(e.amount) + '</b></td><td class="num"><button class="btn btn-sm" data-act="edit-expense" data-id="' + esc(e.id) + '">Edit</button> <button class="btn btn-sm btn-danger" data-act="ask-del-expense" data-id="' + esc(e.id) + '">Delete</button></td></tr>').join('') +
+      '</tbody><tfoot><tr><th colspan="3">Total you recorded</th><td class="num">' + plain(own) + '</td><td></td></tr></tfoot></table></div>' : '<div class="empty"><p>No expenses recorded in ' + y + ' yet. Use the form above to add the first one.</p></div>') +
+    (m.util ? '<p class="hint">Electricity and water bills typed on the Meter readings page are counted automatically: ' + baht(m.util) + ' in ' + y + '. Do not add them again here.</p>' : '') + '</section>' +
+    '<section class="band" aria-label="' + y + ' so far"><div class="fig"><div class="fig-l">Income, ' + y + '</div><div class="fig-v">' + baht0(m.income) + '</div><div class="fig-s">Billed</div></div><div class="fig"><div class="fig-l">Expenses, ' + y + '</div><div class="fig-v">' + baht0(m.exp) + '</div><div class="fig-s">Including utility bills</div></div>' +
+    '<div class="fig"><div class="fig-l">Profit, ' + y + '</div><div class="fig-v' + (m.profit < 0 ? ' neg' : '') + '">' + (m.profit < 0 ? '−' : '') + baht0(Math.abs(m.profit)) + '</div><div class="fig-s">Income minus expenses</div></div><div class="fig"><div class="fig-l">Collected, ' + y + '</div><div class="fig-v">' + baht0(m.collected) + '</div><div class="fig-s">Money received</div></div></section>';
+}
+
+/* ---------- Overview ---------- */
+function monthTotals(p) {
+  const t = { rent: 0, elec: 0, water: 0, other: 0, billed: 0, collected: 0, bills: 0, paidRooms: 0, occ: 0, rooms: 0, eUnits: 0, wUnits: 0, read: 0 };
+  for (const id of periodRoomIds(p)) {
+    const r = p.rooms[id], c = calc(p, id); t.rooms++;
+    if (c.eUnits != null && c.eUnits >= 0) t.eUnits += c.eUnits; if (c.wUnits != null && c.wUnits >= 0) t.wUnits += c.wUnits;
+    if (c.complete) t.read++;
+    if (!r.occupied) continue; t.occ++;
+    if (!c.complete) continue;
+    t.bills++; t.rent += Number(r.rent) || 0; t.elec += c.eAmt; t.water += c.wAmt; t.other += c.extras + c.other + c.late; t.billed += c.total; t.collected += c.paid; if (c.status === 'paid') t.paidRooms++;
+  }
+  t.outstanding = Math.max(0, r2(t.billed - t.collected));
+  return t;
+}
+function attention(p) {
+  const out = [];
+  for (const id of periodRoomIds(p)) {
+    const r = p.rooms[id], c = calc(p, id);
+    if (c.status === 'overdue') out.push({ lvl: 'crit', ic: '!', t: '' + UC(r.no) + ' is ' + daysBetween(p.dueDate, todayIso()) + ' days overdue', s: baht(c.balance) + ' unpaid' + (r.tenant ? ', ' + r.tenant : ''), act: 'invoice', rid: id, btn: 'Open bill' });
+  }
+  const missing = periodRoomIds(p).filter(id => p.rooms[id].occupied && !calc(p, id).complete);
+  if (missing.length) out.push({ lvl: 'warn', ic: '!', t: missing.length + (missing.length === 1 ? ' room still needs' : ' rooms still need') + ' a meter reading', s: 'Rooms ' + missing.map(id => p.rooms[id].no).join(', '), href: '#meters', btn: 'Enter readings' });
+  for (const id of periodRoomIds(p)) {
+    const r = p.rooms[id], c = calc(p, id);
+    if (c.eUnits != null && c.eUnits < 0) out.push({ lvl: 'crit', ic: '!', t: '' + UC(r.no) + ' electricity reading is lower than last month', s: 'Check the number, or fix the previous reading if the meter was replaced.', href: '#meters', btn: 'Check' });
+    const sp = r.occupied ? spikeFor(id, p.ym) : null;
+    if (sp) out.push({ lvl: 'warn', ic: '↑', t: '' + UC(r.no) + ' used ' + num(c.eUnits) + ' units of electricity', s: sp.pct + '% above its usual ' + sp.avg + ' units. Worth checking the reading.', href: '#room-' + id, btn: 'See history' });
+  }
+  if (p.ym === ymList().slice(-1)[0]) for (const room of roomList()) {
+    if (room.tenant && room.tenant.leaseEnd) { const d = daysBetween(todayIso(), room.tenant.leaseEnd); if (d >= 0 && d <= 30) out.push({ lvl: '', ic: 'i', t: '' + UC(room.no) + ' lease ends ' + dShort(room.tenant.leaseEnd), s: room.tenant.name + ', in ' + d + ' days', href: '#room-' + room.id, btn: 'Open room' }); }
+  }
+  return out;
+}
+function go(h) { if (location.hash === h) route(); else location.hash = h; }
+function monthSteps(p) {
+  const ids = periodRoomIds(p).filter(id => p.rooms[id].occupied), cs = ids.map(id => calc(p, id)), n = ids.length, meters = (p.elecMode || 'meter') === 'meter' || p.waterMode === 'meter';
+  const bills = cs.filter(c => c.complete).length, sent = ids.filter((id, i) => cs[i].complete && (p.rooms[id].sent || cs[i].status === 'paid')).length, paid = cs.filter(c => c.status === 'paid').length, steps = [];
+  if (meters) { steps.push({ t: 'Read the meters', s: bills + ' of ' + n + ' done', done: n > 0 && bills === n, href: '#meters' }); steps.push({ t: 'Issue the bills', s: p.issued ? 'Done' : 'Not yet', done: !!p.issued, href: '#meters' }); }
+  steps.push({ t: 'Send the bills', s: sent + ' of ' + bills + ' sent', done: bills > 0 && sent === bills, href: '#bills' });
+  steps.push({ t: 'Record payments', s: paid + ' of ' + bills + ' paid', done: bills > 0 && paid === bills, href: '#bills' });
+  const now = steps.findIndex(s => !s.done);
+  return '<ol class="steps" aria-label="This month, step by step">' + steps.map((s, i) => '<li><a class="step' + (s.done ? ' done' : i === now ? ' now' : '') + '" href="' + s.href + '"><span class="n">' + (s.done ? '✓' : i + 1) + '</span><span><b>' + s.t + '</b><span class="sub">' + s.s + '</span></span></a></li>').join('') + '</ol>';
+}
+function vOverview() {
+  const p = S.periods[S.ym]; if (!p) return noMonths();
+  const B = S.all[S.bid], whole = B.kind === 'whole', meters = (p.elecMode || 'meter') === 'meter' || p.waterMode === 'meter';
+  const t = monthTotals(p), pct = t.billed > 0 ? Math.min(100, Math.round(t.collected / t.billed * 100)) : 0, items = attention(p), yr = S.ym.slice(0, 4), ym = yearMoney(B, yr);
+  const unpaid = t.bills - t.paidRooms, tn = whole ? p.rooms.whole : null;
+  return '<div class="head"><div><h1>' + ymLong(S.ym) + '</h1><p class="sub">' + (meters ? 'Meters read ' + dShort(p.readDate) + '. ' : '') + 'Bills due ' + dShort(p.dueDate) + '.' + (p.issued ? '' : ' Bills not issued yet.') + '</p></div>' +
+    '<div class="actions">' + (meters ? '<a class="btn" href="#meters">Meter readings</a>' : '') + '<a class="btn btn-primary" href="#bills">Bills and payments</a></div></div>' +
+    monthSteps(p) +
+    '<section class="band" aria-label="This month">' +
+    '<div class="fig"><div class="fig-l">Billed</div><div class="fig-v">' + baht0(t.billed) + '</div><div class="fig-s">' + t.bills + (t.bills === 1 ? ' bill' : ' bills') + '</div></div>' +
+    '<div class="fig"><div class="fig-l">Collected</div><div class="fig-v">' + baht0(t.collected) + '</div><div class="fig-s">' + t.paidRooms + ' of ' + t.bills + ' paid in full</div></div>' +
+    '<div class="fig"><div class="fig-l">Still to collect</div><div class="fig-v">' + baht0(t.outstanding) + '</div><div class="fig-s">' + (unpaid ? unpaid + (unpaid === 1 ? ' bill' : ' bills') : 'Nothing outstanding') + '</div></div>' +
+    (tn ? '<div class="fig"><div class="fig-l">Tenant</div><div class="fig-v" style="font-size:19px">' + (tn.occupied ? esc(tn.tenant) || 'No name yet' : 'Vacant') + '</div><div class="fig-s">Rent ' + baht0(tn.rent) + ' a month</div></div>'
+      : '<div class="fig"><div class="fig-l">Rooms occupied</div><div class="fig-v">' + t.occ + ' of ' + t.rooms + '</div><div class="fig-s">' + (t.rooms - t.occ) + ' vacant</div></div>') + '</section>' +
+    '<div class="collect"><div class="track" role="img" aria-label="' + pct + '% collected"><i style="width:' + pct + '%"></i></div><span class="sub">' + pct + '% of this month’s bills collected. In ' + yr + ' so far: income ' + baht0(ym.income) + ', expenses ' + baht0(ym.exp) + ', profit ' + (ym.profit < 0 ? '−' : '') + baht0(Math.abs(ym.profit)) + '. <a href="#expenses">Add an expense</a></span></div>' +
+    '<div class="cols"><section class="sec"><h2>Needs attention</h2>' +
+    (items.length ? '<ul class="attn">' + items.map(a => '<li class="' + a.lvl + '"><span class="ic">' + a.ic + '</span><div class="txt"><b>' + esc(a.t) + '</b><span>' + esc(a.s) + '</span></div>' +
+      (a.act ? '<button class="btn btn-sm" data-act="' + a.act + '" data-rid="' + a.rid + '">' + a.btn + '</button>' : '<a class="btn btn-sm" href="' + a.href + '">' + a.btn + '</a>') + '</li>').join('') + '</ul>'
+      : '<div class="empty"><p>Nothing needs attention this month.</p></div>') + '</section>' +
+    '<section class="sec"><h2>Billed each month</h2><div class="legend">' + SERIES.map(s => '<span><i style="background:var(' + s.v + ')"></i>' + s.name + '</span>').join('') + '</div>' +
+    '<div class="chart" data-chart="income"></div><p class="hint">Exact figures are in <a href="#history">History</a>.</p></section></div>';
+}
+
+/* ---------- charts ---------- */
+const SERIES = [{ k: 'rent', name: 'Rent', v: '--s-rent' }, { k: 'elec', name: 'Electricity', v: '--s-elec' }, { k: 'water', name: 'Water', v: '--s-water' }, { k: 'other', name: 'Other', v: '--s-other' }];
+function niceStep(v) { const raw = Math.max(v, 1) / 4, e = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / e; return Math.max(1, (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * e); }
+function colChart(el, o) {
+  const W = Math.max(260, Math.floor(el.clientWidth - 20)), H = o.height || 230, pl = 46, pr = 10, pt = 20, pb = 26;
+  const n = o.labels.length, totals = o.labels.map((_, i) => o.series.reduce((t, s) => t + (s.values[i] || 0), 0));
+  const top = Math.max.apply(null, totals.concat([1])), stepV = niceStep(top), ticks = Math.max(2, Math.ceil(top / stepV)), max = stepV * ticks, iw = W - pl - pr, ih = H - pt - pb, band = iw / Math.max(n, 1), bw = Math.min(24, Math.max(4, band * 0.6));
+  const y = v => pt + ih - (v / max) * ih, compact = max >= 10000;
+  let s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.label) + '">';
+  for (let t = 0; t <= ticks; t++) { const v = stepV * t, yy = Math.round(y(v)) + 0.5; s += '<line class="' + (t ? 'grid' : 'base') + '" x1="' + pl + '" x2="' + (W - pr) + '" y1="' + yy + '" y2="' + yy + '"/><text x="' + (pl - 8) + '" y="' + (yy + 4) + '" text-anchor="end">' + (compact && v ? (v / 1000) + 'K' : v.toLocaleString('en-US')) + '</text>'; }
+  const step = band >= 38 ? 1 : band >= 19 ? 2 : 3;
+  const maxI = totals.indexOf(Math.max.apply(null, totals));
+  for (let i = 0; i < n; i++) {
+    const x = pl + band * i + (band - bw) / 2; let acc = 0;
+    const segs = o.series.filter(sr => (sr.values[i] || 0) > 0);
+    segs.forEach((sr, k) => {
+      const v = sr.values[i], yb = y(acc) - (k > 0 ? 2 : 0), yt = y(acc + v); acc += v; const h = yb - yt; if (h < 0.5) return;
+      if (k === segs.length - 1) { const r = Math.min(4, h, bw / 2); s += '<path fill="var(' + sr.v + ')" d="M' + x + ',' + yb + 'V' + (yt + r) + 'Q' + x + ',' + yt + ' ' + (x + r) + ',' + yt + 'H' + (x + bw - r) + 'Q' + (x + bw) + ',' + yt + ' ' + (x + bw) + ',' + (yt + r) + 'V' + yb + 'Z"/>'; }
+      else s += '<rect fill="var(' + sr.v + ')" x="' + x + '" y="' + yt + '" width="' + bw + '" height="' + h + '"/>';
+    });
+    if ((n - 1 - i) % step === 0) s += '<text x="' + (x + bw / 2) + '" y="' + (H - 8) + '" text-anchor="middle">' + esc(o.labels[i]) + '</text>';
+    if (o.series.length === 1 && totals[i] > 0 && (i === maxI || i === n - 1)) s += '<text class="val" x="' + (x + bw / 2) + '" y="' + (y(totals[i]) - 6) + '" text-anchor="middle">' + o.fmt(totals[i]) + '</text>';
+    const tip = { t: o.full[i], rows: o.series.map(sr => [sr.name, o.fmt(sr.values[i] || 0), sr.v]) };
+    if (o.series.length > 1) tip.rows.push(['Total', o.fmt(totals[i]), '']);
+    if (o.missing && o.missing[i]) tip.rows = [['No reading', '', '']];
+    s += '<rect class="hit" tabindex="0" x="' + (pl + band * i) + '" y="' + pt + '" width="' + band + '" height="' + ih + '" data-tip="' + esc(JSON.stringify(tip)) + '"/>';
+  }
+  el.innerHTML = s + '</svg>';
+}
+function mountCharts() {
+  $$('[data-chart]').forEach(el => {
+    const key = el.dataset.chart;
+    if (key === 'income') {
+      const yms = ymList().filter(y => y <= S.ym).slice(-12), tots = yms.map(y => monthTotals(S.periods[y]));
+      colChart(el, { label: 'Amount billed each month, split into rent, electricity, water and other', labels: yms.map(y => MON[+y.slice(5) - 1]), full: yms.map(ymLong), fmt: baht0, series: SERIES.map(sr => ({ name: sr.name, v: sr.v, values: tots.map(t => Math.round(t[sr.k])) })) });
+    } else if (key === 'room-e' || key === 'room-w') {
+      const ser = roomSeries(S.roomId).slice(-12), f = key === 'room-e' ? 'eUnits' : 'wUnits';
+      colChart(el, { height: 200, label: (key === 'room-e' ? 'Electricity' : 'Water') + ' units used each month', labels: ser.map(x => MON[+x.ym.slice(5) - 1]), full: ser.map(x => ymLong(x.ym)), fmt: v => num(v) + ' units', missing: ser.map(x => x[f] == null),
+        series: [{ name: key === 'room-e' ? 'Electricity' : 'Water', v: key === 'room-e' ? '--s-elec' : '--s-water', values: ser.map(x => Math.max(0, x[f] || 0)) }] });
+    }
+  });
+}
+
+/* ---------- Meter readings ---------- */
+function meterFlag(p, id) {
+  const c = calc(p, id), r = p.rooms[id];
+  if (c.eUnits != null && c.eUnits < 0 || c.wUnits != null && c.wUnits < 0) return '<span class="pill overdue"><i>!</i>Lower than last month</span>';
+  const sp = r.occupied ? spikeFor(id, p.ym) : null;
+  if (sp) return '<span class="pill partial"><i>↑</i>' + sp.pct + '% above usual</span>';
+  return '';
+}
+function vMeters() {
+  const p = S.periods[S.ym]; if (!p) return noMonths();
+  if (p.elecMode === 'none' && p.waterMode !== 'meter') return '<div class="head"><div><h1>Meter readings</h1><p class="sub">' + ymLong(p.ym) + ' has no meters to read.</p></div></div><div class="empty"><p>This month’s bills do not use meter readings.</p><a class="btn btn-primary" href="#bills">Go to bills</a></div>';
+  const ids = periodRoomIds(p), t = monthTotals(p), flat = p.waterMode !== 'meter', eNone = p.elecMode === 'none', lock = p.issued, occ = ids.filter(id => p.rooms[id].occupied);
+  const done = occ.filter(id => calc(p, id).complete).length, allDone = done === occ.length && occ.length > 0;
+  const inp = (id, f, v, label, dis) => '<input class="rd" type="number" inputmode="decimal" step="any" data-f="' + f + '" value="' + (v == null ? '' : v) + '" aria-label="' + esc(label) + '"' + (dis ? ' disabled' : '') + '>';
+  const rows = ids.map(id => {
+    const r = p.rooms[id], c = calc(p, id);
+    return '<tr data-rid="' + id + '" class="' + (r.occupied ? '' : 'is-vacant') + '"><th scope="row"><a href="#room-' + id + '">' + esc(N(r.no)) + '</a><div class="sub">' + (r.occupied ? esc(r.tenant) : 'Vacant') + '</div></th>' +
+      (eNone ? '' : '<td class="gl">' + (S.editPrev && !lock ? inp(id, 'ePrev', r.ePrev, '' + UC(r.no) + ' electricity previous reading') : drum(r.ePrev, 'e')) + '</td>' +
+      '<td>' + inp(id, 'eCur', r.eCur, '' + UC(r.no) + ' electricity reading now', lock) + '</td><td class="num" data-c="eU">' + num(c.eUnits) + '</td>') +
+      (flat ? '' : '<td class="gl">' + (S.editPrev && !lock ? inp(id, 'wPrev', r.wPrev, '' + UC(r.no) + ' water previous reading') : drum(r.wPrev, 'w')) + '</td><td>' + inp(id, 'wCur', r.wCur, '' + UC(r.no) + ' water reading now', lock) + '</td><td class="num" data-c="wU">' + num(c.wUnits) + '</td>') +
+      '<td class="gl" data-c="flag">' + meterFlag(p, id) + '</td></tr>';
+  }).join('');
+  const u = p.utility || {};
+  const ufield = (k, label, v) => '<div class="field"><label for="u-' + k + '">' + label + '</label><input id="u-' + k + '" type="number" inputmode="decimal" step="any" data-u="' + k + '" value="' + (v == null ? '' : v) + '"></div>';
+  return '<div class="head"><div><h1>Meter readings</h1><p class="sub" id="meterSub">' + meterSub(p, done, occ.length) + '</p></div><div class="actions">' +
+    '<div class="field" style="flex-direction:row;align-items:center;gap:8px"><label for="readDate">Read on</label><input id="readDate" type="date" value="' + esc(p.readDate || '') + '" style="width:auto"' + (lock ? ' disabled' : '') + '></div>' +
+    '<div class="field" style="flex-direction:row;align-items:center;gap:8px"><label for="dueDate">Due on</label><input id="dueDate" type="date" value="' + esc(p.dueDate || '') + '" style="width:auto"></div>' +
+    (lock ? '<button class="btn" data-act="unlock">Unlock to edit</button>' : '<button class="btn" data-act="toggle-prev" aria-pressed="' + S.editPrev + '">' + (S.editPrev ? 'Done fixing previous readings' : 'Fix previous readings') + '</button><button class="btn btn-primary" id="issueBtn" data-act="issue"' + (allDone ? '' : ' disabled') + '>Issue bills</button>') + '</div></div>' +
+    '<div class="tbl-wrap"><table class="tbl" id="meterTbl"><thead><tr class="grp"><th></th>' + (eNone ? '' : '<th class="gl" colspan="3">Electricity, ' + baht(p.elecRate) + ' per unit</th>') + (flat ? '' : '<th class="gl" colspan="3">Water, ' + baht(p.waterRate) + ' per unit</th>') + '<th class="gl"></th></tr>' +
+    '<tr><th>Room</th>' + (eNone ? '' : '<th class="gl">Last month</th><th>Now</th><th class="num">Units</th>') + (flat ? '' : '<th class="gl">Last month</th><th>Now</th><th class="num">Units</th>') + '<th class="gl">Check</th></tr></thead><tbody>' + rows + '</tbody>' +
+    '<tfoot><tr><th>All rooms</th>' + (eNone ? '' : '<td class="gl"></td><td></td><td class="num" id="totE">' + num(t.eUnits) + '</td>') + (flat ? '' : '<td class="gl"></td><td></td><td class="num" id="totW">' + num(t.wUnits) + '</td>') + '<td class="gl"></td></tr></tfoot></table></div>' +
+    '<section class="sec"><div><h2>What the building paid</h2><p class="sub">Type the totals from your own electricity and water bills. The ledger works out your real cost per unit and compares it with what you charge.</p></div>' +
+    '<div class="util"><div><h3>Electricity bill</h3><div class="fields">' + ufield('elecBill', 'Bill total (฿)', u.elecBill) + ufield('elecUnits', 'Units on the bill', u.elecUnits) + '</div><div class="verdict" id="vE">' + utilVerdict(p, 'elec') + '</div></div>' +
+    '<div><h3>Water bill</h3><div class="fields">' + ufield('waterBill', 'Bill total (฿)', u.waterBill) + ufield('waterUnits', 'Units on the bill', u.waterUnits) + '</div><div class="verdict" id="vW">' + utilVerdict(p, 'water') + '</div></div></div></section>';
+}
+function meterSub(p, done, occ) {
+  return ymLong(p.ym) + '. ' + (p.issued ? 'Bills issued, readings are locked.' : done + ' of ' + occ + ' occupied rooms read. Press Enter to jump to the next room.');
+}
+function utilVerdict(p, kind) {
+  const u = p.utility || {}, bill = u[kind + 'Bill'], units = u[kind + 'Units'], rate = kind === 'elec' ? p.elecRate : p.waterRate, t = monthTotals(p), used = kind === 'elec' ? t.eUnits : t.wUnits;
+  if (kind === 'elec' && p.elecMode === 'none') return 'The tenant pays the electricity company directly.';
+  if (kind === 'water' && p.waterMode === 'none') return 'The tenant pays the water company directly.';
+  if (kind === 'water' && p.waterMode !== 'meter') { if (!(bill > 0)) return 'Water is charged ' + (p.waterMode === 'person' ? 'per person' : 'as a flat amount') + '. Enter the bill total to compare it with what you collect.'; const d = r2(t.water - bill); return '<b>You collect ' + baht(t.water) + ' for water.</b> Your bill was ' + baht(bill) + '. ' + (d > 0.005 ? '<b class="over">That is ' + baht(d) + ' more than the bill.</b> The 2025 lease rules say tenants cannot be charged more than you pay.' : 'That is within what you paid.'); }
+  if (!(bill > 0 && units > 0)) return 'Enter both numbers to see your cost per unit.';
+  const cost = bill / units, diff = r2(rate - cost);
+  let s = '<b>Your cost is ' + baht(cost) + ' per unit.</b> You charge ' + baht(rate) + '. ';
+  s += diff > 0.005 ? '<b class="over">That is ' + baht(diff) + ' above cost.</b> The 2025 lease rules say tenants cannot be charged more than you pay.' : diff < -0.005 ? 'That is ' + baht(-diff) + ' below cost.' : 'That matches your cost.';
+  if (used > 0) s += ' Rooms used ' + num(used) + ' of ' + num(units) + ' units' + (units - used > 0 ? ', leaving ' + num(r2(units - used)) + ' for shared areas.' : '.');
+  return s;
+}
+function onMeterInput(inp) {
+  const tr = inp.closest('tr'), id = tr.dataset.rid, p = S.periods[S.ym], f = inp.dataset.f, v = numOrNull(inp.value);
+  p.rooms[id][f] = v;
+  if (f === 'eCur' || f === 'wCur') { const nx = S.periods[ymAdd(S.ym, 1)]; if (nx && nx.rooms[id] && v != null) { nx.rooms[id][f === 'eCur' ? 'ePrev' : 'wPrev'] = v; persist(bpath('periods/' + nx.ym)); } }
+  persist(bpath('periods/' + S.ym));
+  const c = calc(p, id);
+  const eu = $('[data-c=eU]', tr); if (eu) eu.textContent = num(c.eUnits); const w = $('[data-c=wU]', tr); if (w) w.textContent = num(c.wUnits);
+  $('[data-c=flag]', tr).innerHTML = meterFlag(p, id);
+  $$('.rd', tr).forEach(i => { const k = i.dataset.f; i.classList.toggle('bad', (k === 'eCur' && c.eUnits != null && c.eUnits < 0) || (k === 'wCur' && c.wUnits != null && c.wUnits < 0)); });
+  const t = monthTotals(p); if ($('#totE')) $('#totE').textContent = num(t.eUnits); if ($('#totW')) $('#totW').textContent = num(t.wUnits);
+  const occ = periodRoomIds(p).filter(x => p.rooms[x].occupied), done = occ.filter(x => calc(p, x).complete).length;
+  $('#meterSub').textContent = meterSub(p, done, occ.length); const b = $('#issueBtn'); if (b) b.disabled = !(done === occ.length && occ.length > 0);
+  $('#vE').innerHTML = utilVerdict(p, 'elec'); $('#vW').innerHTML = utilVerdict(p, 'water');
+}
+
+/* ---------- Bills ---------- */
+function vBills() {
+  const p = S.periods[S.ym]; if (!p) return noMonths();
+  const ids = periodRoomIds(p).filter(id => p.rooms[id].occupied), t = monthTotals(p);
+  const show = ids.filter(id => { const s = calc(p, id).status; return S.billFilter === 'all' || (S.billFilter === 'unpaid' ? ['due', 'partial', 'overdue', 'draft'].includes(s) : s === 'paid'); });
+  const chip = (k, l) => '<button class="chip" data-act="bill-filter" data-k="' + k + '" aria-pressed="' + (S.billFilter === k) + '">' + l + '</button>';
+  const rows = show.map(id => {
+    const r = p.rooms[id], c = calc(p, id), draft = c.status === 'draft';
+    return '<tr class="clickable" tabindex="0" data-act="invoice" data-rid="' + id + '"><th scope="row">' + esc(N(r.no)) + '<div class="sub">' + esc(r.tenant) + '</div></th><td class="num">' + plain(r.rent) + '</td><td class="num">' + (draft ? '–' : plain(c.eAmt)) + '</td><td class="num">' + (draft ? '–' : plain(c.wAmt)) + '</td><td class="num">' + plain(c.extras + c.other + c.late) + '</td>' +
+      '<td class="num"><b>' + (draft ? '–' : plain(c.total)) + '</b></td><td class="num">' + plain(c.paid) + '</td><td>' + pill(c) + (r.sent && c.balance > 0.005 ? '<div class="sub">Sent ' + dShort(r.sent) + '</div>' : '') + '</td><td class="num">' + (draft ? '' : c.balance > 0.005 ? '<button class="btn btn-sm' + (r.sent ? '' : ' btn-primary') + '" data-act="invoice" data-rid="' + id + '">' + (r.sent ? 'Send again' : 'Send bill') + '</button> <button class="btn btn-sm' + (r.sent ? ' btn-primary' : '') + '" data-act="pay" data-rid="' + id + '">Record payment</button>' : '<button class="btn btn-sm" data-act="invoice" data-rid="' + id + '">Receipt</button>') + '</td></tr>';
+  }).join('');
+  return '<div class="head"><div><h1>Bills</h1><p class="sub">' + ymLong(S.ym) + '. Due ' + dShort(p.dueDate) + '.' + (p.issued ? '' : ' Not issued yet, so amounts can still change.') + ' Press Send bill to copy it for LINE or save it as a picture.</p></div>' +
+    '<div class="chips" role="group" aria-label="Show">' + chip('all', 'All ' + ids.length) + chip('unpaid', 'Unpaid ' + ids.filter(id => calc(p, id).status !== 'paid').length) + chip('paid', 'Paid ' + t.paidRooms) + '</div></div>' +
+    (ids.length ? '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Room</th><th class="num">Rent</th><th class="num">Electricity</th><th class="num">Water</th><th class="num">Other</th><th class="num">Total (฿)</th><th class="num">Paid</th><th>Status</th><th></th></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="9" class="sub">No bills match this filter.</td></tr>') + '</tbody><tfoot><tr><th>All bills</th><td class="num">' + plain(t.rent) + '</td><td class="num">' + plain(t.elec) + '</td><td class="num">' + plain(t.water) + '</td><td class="num">' + plain(t.other) + '</td><td class="num">' + plain(t.billed) + '</td><td class="num">' + plain(t.collected) + '</td><td colspan="2">' + baht(t.outstanding) + ' still to collect</td></tr></tfoot></table></div>'
+      : '<div class="empty"><p>No occupied rooms this month, so there are no bills.</p><a class="btn" href="#rooms">Add a tenant</a></div>');
+}
+function invoiceModel(ym, rid) {
+  const p = S.periods[ym], r = p.rooms[rid], c = calc(p, rid), lines = [];
+  const meter = (u, rate, a, b) => num(u) + ' หน่วย × ' + plain(rate) + ' บาท  (มิเตอร์ ' + num(a) + ' → ' + num(b) + ')';
+  lines.push({ th: 'ค่าเช่าห้อง', en: 'Room rent', amt: Number(r.rent) || 0 });
+  if (!c.eNone) lines.push({ th: 'ค่าไฟฟ้า', en: 'Electricity', detail: meter(c.eUnits, p.elecRate, r.ePrev, r.eCur), amt: c.eAmt });
+  if (p.waterMode === 'none') { /* paid to the water company directly */ }
+  else if (p.waterMode === 'person') lines.push({ th: 'ค่าน้ำประปา', en: 'Water', detail: c.people + ' คน × ' + plain(p.waterPerPerson) + ' บาท', amt: c.wAmt });
+  else if (c.flat) lines.push({ th: 'ค่าน้ำประปา', en: 'Water', detail: 'เหมาจ่ายรายห้อง', amt: c.wAmt });
+  else lines.push({ th: 'ค่าน้ำประปา', en: 'Water', detail: meter(c.wUnits, p.waterRate, r.wPrev, r.wCur) + (c.wMinApplied ? '  คิดขั้นต่ำ' : ''), amt: c.wAmt });
+  (r.extras || []).concat(r.other || []).forEach(x => lines.push({ th: x.name, en: '', amt: Number(x.amount) || 0 }));
+  if (c.late) lines.push({ th: 'ค่าปรับชำระล่าช้า', en: 'Late fee', amt: c.late });
+  const rc = c.status === 'paid', pays = r.payments || [];
+  const payInfo = [];
+  const acc = [S.cfg.payBank, S.cfg.payAccNo, S.cfg.payAccName].filter(Boolean).join('  ');
+  if (!rc && acc) payInfo.push('โอนเงิน / Transfer to: ' + acc);
+  if (!rc && S.cfg.promptpay) payInfo.push('พร้อมเพย์ / PromptPay: ' + S.cfg.promptpay);
+  if (!rc && p.lateFeePerDay > 0) payInfo.push('ชำระหลังกำหนด ปรับวันละ ' + plain(p.lateFeePerDay) + ' บาท');
+  if (S.cfg.invoiceNote) payInfo.push(S.cfg.invoiceNote);
+  return { p, r, c, lines, rc, payInfo, no: (rc ? 'RC' : 'INV') + '-' + ym.replace('-', '') + (r.no === WH ? '' : '-' + r.no), title: rc ? ['ใบเสร็จรับเงิน', 'Receipt'] : ['ใบแจ้งค่าเช่า', 'Rent bill'],
+    bigLabel: rc ? 'ชำระแล้ว / Paid' : 'ยอดที่ต้องชำระ / Amount to pay', bigAmt: rc ? c.total : Math.max(0, c.balance),
+    sideLabel: rc ? 'วันที่ชำระ / Paid on' : 'ชำระภายใน / Pay by', sideVal: rc ? dThai(pays.length ? pays[pays.length - 1].date : '') : dThai(p.dueDate) };
+}
+function sheetHtml(m) {
+  const { p, r, c } = m, cfg = S.cfg;
+  return '<div class="sheet' + (m.rc ? ' rc' : '') + '"><div class="sh-top"><div class="sh-org"><b>' + esc(cfg.name) + '</b><div>' + esc(cfg.address) + '</div><div>' + (cfg.phone ? 'โทร ' + esc(cfg.phone) : '') + '</div></div>' +
+    '<div class="sh-kind"><b>' + m.title[0] + '</b><div>' + m.title[1] + '</div><div>' + esc(m.no) + '</div></div></div>' +
+    '<div class="sh-who"><b>' + UT(r.no) + '&nbsp; ' + esc(r.tenant) + '</b><span>' + ymThai(p.ym) + '</span></div>' +
+    '<div class="sh-due"><div><div class="lb">' + m.bigLabel + '</div><div class="amt">฿' + plain(m.bigAmt) + '</div></div><div class="by"><div class="lb">' + m.sideLabel + '</div><b>' + m.sideVal + '</b></div></div>' +
+    m.lines.map(l => '<div class="ln"><div class="nm"><b>' + esc(l.th) + '</b>' + (l.en ? ' <span>' + esc(l.en) + '</span>' : '') + (l.detail ? '<div class="dt">' + esc(l.detail) + '</div>' : '') + '</div><div class="am">' + plain(l.amt) + '</div></div>').join('') +
+    '<div class="ln tot"><div class="nm"><b>รวมทั้งสิ้น</b> <span>Total</span></div><div class="am">' + plain(c.total) + '</div></div>' +
+    (c.paid > 0 && !m.rc ? '<div class="ln sm"><div class="nm">ชำระแล้ว <span>Paid</span></div><div class="am">' + plain(c.paid) + '</div></div><div class="ln sm"><div class="nm"><b>คงค้าง</b> <span>Balance</span></div><div class="am">' + plain(Math.max(0, c.balance)) + '</div></div>' : '') +
+    (m.payInfo.length ? '<div class="sh-pay">' + m.payInfo.map(t => '<div>' + esc(t) + '</div>').join('') + '</div>' : '') + '</div>';
+}
+function openInvoice(rid, ym) {
+  ym = ym || S.ym; const m = invoiceModel(ym, rid), { r, c } = m;
+  if (c.status === 'draft') { openModal('<div class="modal-head"><h2>' + UC(r.no) + ' needs a meter reading</h2></div><p class="sub">The bill can be made once this month’s readings are in.</p><div class="modal-foot"><button class="btn" data-act="close">Close</button><a class="btn btn-primary" href="#meters" data-act="close-go">Enter readings</a></div>'); return; }
+  const d = 'data-rid="' + rid + '" data-ym="' + ym + '"', owing = c.balance > 0.005, sendFirst = owing && !r.sent;
+  const pays = (r.payments || []).map((x, i) => '<li><span>' + dShort(x.date) + ', ' + baht(x.amount) + ', ' + esc(x.method || '') + '</span><button class="btn btn-sm btn-danger" data-act="del-pay" ' + d + ' data-i="' + i + '">Remove</button></li>').join('');
+  const others = (r.other || []).map((x, i) => '<li><span>' + esc(x.name) + ', ' + baht(x.amount) + '</span><button class="btn btn-sm btn-danger" data-act="del-other" ' + d + ' data-i="' + i + '">Remove</button></li>').join('');
+  openModal('<div class="modal-head"><h2>' + (m.rc ? 'Receipt' : 'Bill') + ' for ' + U(r.no) + ', ' + ymLong(ym) + '</h2><button class="btn btn-sm" data-act="close">Close</button></div>' +
+    '<div class="actions"><button class="btn' + (sendFirst ? ' btn-primary' : '') + '" data-act="copy-bill" ' + d + '>Copy message for LINE</button>' + (S.dl ? '<button class="btn" data-act="save-png" ' + d + '>' + (navigator.canShare ? 'Share as a picture' : 'Save as a picture') + '</button>' : '') +
+    (owing ? '<button class="btn' + (sendFirst ? '' : ' btn-primary') + '" data-act="pay" ' + d + '>Record payment</button>' : '') + pill(c) + (r.sent ? '<span class="sub">Sent ' + dShort(r.sent) + '</span>' : '') + '</div>' +
+    '<div class="sheet-wrap">' + sheetHtml(m) + '</div>' +
+    (pays ? '<div><h3>Payments received</h3><ul class="paylist">' + pays + '</ul></div>' : '') +
+    '<div><h3>One-off charges</h3>' + (others ? '<ul class="paylist">' + others + '</ul>' : '') + '<form class="inline-form" data-form="add-other" ' + d + '><div class="field"><label for="oName">What for</label><input id="oName" name="name" placeholder="Key replacement" required maxlength="60"></div><div class="field"><label for="oAmt">Amount (฿)</label><input id="oAmt" name="amount" type="number" step="any" required></div><button class="btn">Add charge</button></form></div>', true);
+}
+function markSent(ym, rid) { S.periods[ym].rooms[rid].sent = todayIso(); persist(bpath('periods/' + ym)); render(); openInvoice(rid, ym); }
+function billMessage(m) {
+  const { p, r, c } = m, L = [];
+  L.push(S.cfg.name); L.push((m.rc ? 'ใบเสร็จรับเงิน' : 'แจ้งค่าเช่า') + ' ' + UT(r.no) + ' เดือน' + ymThai(p.ym)); L.push('');
+  L.push((m.rc ? 'ชำระแล้ว ' : 'ยอดที่ต้องชำระ ') + plain(m.bigAmt) + ' บาท');
+  L.push((m.rc ? 'วันที่ชำระ ' : 'ชำระภายในวันที่ ') + m.sideVal); L.push('');
+  m.lines.forEach(l => { L.push(l.th + ' ' + plain(l.amt) + ' บาท'); if (l.detail) L.push('  ' + l.detail); });
+  L.push('รวมทั้งสิ้น ' + plain(c.total) + ' บาท');
+  if (c.paid > 0 && !m.rc) L.push('ชำระแล้ว ' + plain(c.paid) + ' บาท คงค้าง ' + plain(Math.max(0, c.balance)) + ' บาท');
+  if (m.payInfo.length) { L.push(''); m.payInfo.forEach(t => L.push(t)); }
+  if (m.rc) { L.push(''); L.push('ขอบคุณค่ะ/ครับ'); }
+  return L.join('\n');
+}
+async function drawInvoicePng(m) {
+  try { if (document.fonts && document.fonts.load) await Promise.all([document.fonts.load('16px Sarabun'), document.fonts.load('700 16px Sarabun')]); } catch (e) {}
+  const { p, r, c } = m, cfg = S.cfg, W = 900, X0 = 56, X1 = W - 56, sc = 2, lh = l => l.detail ? 88 : 60, partial = c.paid > 0 && !m.rc;
+  const H = 56 + 116 + 64 + 156 + m.lines.reduce((a, l) => a + lh(l), 0) + 76 + (partial ? 92 : 0) + (m.payInfo.length ? 26 + m.payInfo.length * 34 : 0) + 50;
+  const cv = document.createElement('canvas'); cv.width = W * sc; cv.height = H * sc; const g = cv.getContext('2d'); g.scale(sc, sc);
+  const F = (w, s) => { g.font = w + ' ' + s + 'px Sarabun, "Noto Sans Thai", sans-serif'; }, ink = '#141c21', soft = '#4b5a62';
+  const L = (t, x, y, mw) => { g.textAlign = 'left'; g.fillText(t, x, y, mw); }, R = (t, x, y, mw) => { g.textAlign = 'right'; g.fillText(t, x, y, mw); };
+  g.fillStyle = m.rc ? '#FDF1F4' : '#ffffff'; g.fillRect(0, 0, W, H); g.textBaseline = 'alphabetic';
+  let y = 56;
+  g.fillStyle = ink; F(700, 30); L(cfg.name || '', X0, y + 32, 520); F(400, 19); g.fillStyle = soft; L(cfg.address || '', X0, y + 62, 520); if (cfg.phone) L('โทร ' + cfg.phone, X0, y + 90, 520);
+  g.fillStyle = ink; F(700, 27); R(m.title[0], X1, y + 32); F(400, 19); g.fillStyle = soft; R(m.title[1], X1, y + 60); R(m.no, X1, y + 88);
+  y += 116; g.fillStyle = ink; F(700, 25); L('' + UT(r.no) + '   ' + (r.tenant || ''), X0, y + 34, 520); F(400, 22); g.fillStyle = soft; R(ymThai(p.ym), X1, y + 34);
+  y += 64; g.fillStyle = m.rc ? '#E0F2E4' : '#EEF1FB'; if (g.roundRect) { g.beginPath(); g.roundRect(X0, y, X1 - X0, 132, 14); g.fill(); } else g.fillRect(X0, y, X1 - X0, 132);
+  g.fillStyle = soft; F(400, 20); L(m.bigLabel, X0 + 26, y + 42); R(m.sideLabel, X1 - 26, y + 42);
+  g.fillStyle = ink; F(700, 52); L('฿\u2009' + plain(m.bigAmt), X0 + 26, y + 104); F(700, 25); R(m.sideVal, X1 - 26, y + 100);
+  y += 156;
+  m.lines.forEach(l => {
+    g.fillStyle = '#dfe5e9'; g.fillRect(X0, y, X1 - X0, 1); g.fillStyle = ink; F(700, 23); L(l.th, X0, y + 38, 520); const w = Math.min(g.measureText(l.th).width, 520);
+    if (l.en) { F(400, 18); g.fillStyle = soft; L(l.en, X0 + w + 12, y + 38, 200); }
+    g.fillStyle = ink; F(700, 23); R(plain(l.amt), X1, y + 38);
+    if (l.detail) { F(400, 19); g.fillStyle = soft; L(l.detail, X0, y + 68, X1 - X0 - 140); }
+    y += lh(l);
+  });
+  g.fillStyle = ink; g.fillRect(X0, y, X1 - X0, 2); F(700, 25); L('รวมทั้งสิ้น / Total', X0, y + 46); F(700, 28); R(plain(c.total), X1, y + 46); y += 76;
+  if (partial) { F(400, 22); g.fillStyle = soft; L('ชำระแล้ว / Paid', X0, y + 30); R(plain(c.paid), X1, y + 30); g.fillStyle = ink; F(700, 23); L('คงค้าง / Balance', X0, y + 74); R(plain(Math.max(0, c.balance)), X1, y + 74); y += 92; }
+  if (m.payInfo.length) { y += 26; F(400, 20); g.fillStyle = '#2c373d'; m.payInfo.forEach(t => { L(t, X0, y + 22, X1 - X0); y += 34; }); }
+  return new Promise(res => cv.toBlob(res, 'image/png'));
+}
+
+/* ---------- Rooms ---------- */
+function vRooms() {
+  const rooms = roomList(), floors = {}; rooms.forEach(r => (floors[r.floor] = floors[r.floor] || []).push(r));
+  const occ = rooms.filter(r => r.tenant).length;
+  return '<div class="head"><div><h1>Rooms</h1><p class="sub">' + occ + ' of ' + rooms.length + ' occupied. Select a room to see its tenant and every past bill.</p></div><div class="actions"><button class="btn btn-primary" data-act="bulk">Set rent and people for every room</button><button class="btn" data-act="add-room">Add a room</button></div></div>' +
+    (rooms.length ? Object.keys(floors).sort((a, b) => a - b).map(f => '<section class="floor"><h2>Floor ' + esc(f) + '</h2><div class="rooms">' + floors[f].map(r =>
+      '<a class="room' + (r.tenant ? '' : ' vac') + '" href="#room-' + r.id + '"><span class="no">' + esc(N(r.no)) + '</span><span class="who">' + (r.tenant ? (esc(r.tenant.name) || 'No name yet') : 'Vacant') + '</span><span class="rent">' + baht0(r.rent) + ' a month' + (r.tenant ? ', ' + (r.people || 1) + ((r.people || 1) === 1 ? ' person' : ' people') : '') + '</span></a>').join('') + '</div></section>').join('')
+      : '<div class="empty"><p>No rooms yet.</p><button class="btn btn-primary" data-act="add-room">Add a room</button></div>');
+}
+function vRoom() {
+  const room = S.rooms[S.roomId], ser = roomSeries(room.id), t = room.tenant, last = ser[ser.length - 1], hasE = (S.cfg.elecMode || 'meter') === 'meter' || ser.some(x => x.eUnits != null), hasW = S.cfg.waterMode === 'meter' || ser.some(x => x.wUnits != null && !x.flat);
+  const rows = ser.slice().reverse().map(x => '<tr class="clickable" tabindex="0" data-act="invoice" data-rid="' + room.id + '" data-ym="' + x.ym + '"><th scope="row">' + ymLong(x.ym) + '<div class="sub">' + (x.r.occupied ? esc(x.r.tenant) : 'Vacant') + '</div></th>' +
+    '<td class="num">' + num(x.r.ePrev) + ' → ' + num(x.r.eCur) + '</td><td class="num"><b>' + num(x.eUnits) + '</b></td><td class="num">' + plain(x.eAmt) + '</td><td class="num"><b>' + (x.p.waterMode === 'person' ? x.people + (x.people === 1 ? ' person' : ' people') : x.flat ? 'Flat' : num(x.wUnits)) + '</b></td><td class="num">' + plain(x.wAmt) + '</td><td class="num">' + (x.r.occupied ? plain(x.total) : '–') + '</td><td>' + ((x.r.payments || []).length ? dShort(x.r.payments[x.r.payments.length - 1].date) : '–') + '</td><td>' + pill(x) + '</td></tr>').join('');
+  const extras = (room.extras || []).map(e => esc(e.name) + ' ' + baht0(e.amount)).join(', ');
+  return '<div class="head"><div>' + (room.no === WH ? '' : '<p class="sub"><a href="#rooms">Rooms</a></p>') + '<h1>' + UC(room.no) + '</h1><p class="sub">' + (room.no === WH ? '' : 'Floor ' + esc(room.floor) + '. ') + baht0(room.rent) + ' a month' + (extras ? ', plus ' + extras : '') + '.</p></div>' +
+    '<div class="actions"><button class="btn" data-act="edit-room" data-rid="' + room.id + '">Edit room</button>' + (t ? '<button class="btn" data-act="edit-tenant" data-rid="' + room.id + '">Edit tenant</button><button class="btn btn-danger" data-act="ask-moveout" data-rid="' + room.id + '">Move out</button>' : '<button class="btn btn-primary" data-act="edit-tenant" data-rid="' + room.id + '">Move a tenant in</button>') + '</div></div>' +
+    '<dl class="facts">' + (t ? '<div><dt>Tenant</dt><dd>' + (esc(t.name) || 'No name yet') + '</dd></div><div><dt>Phone</dt><dd>' + esc(t.phone || '–') + '</dd></div><div><dt>Moved in</dt><dd>' + dShort(t.moveIn) + '</dd></div><div><dt>Lease ends</dt><dd>' + dShort(t.leaseEnd) + '</dd></div><div><dt>Deposit held</dt><dd>' + baht0(t.deposit) + '</dd></div><div><dt>People in the room</dt><dd>' + (room.people || 1) + '</dd></div>'
+      : '<div><dt>Tenant</dt><dd>Vacant</dd></div>') +
+    (hasE ? '<div><dt>Electricity meter</dt><dd>' + drum(last ? (last.r.eCur != null ? last.r.eCur : last.r.ePrev) : room.elecStart, 'e', true) + '</dd></div>' : '') + (hasW ? '<div><dt>Water meter</dt><dd>' + drum(last ? (last.r.wCur != null ? last.r.wCur : last.r.wPrev) : room.waterStart, 'w', true) + '</dd></div>' : '') + '</dl>' +
+    (ser.length ? '<div class="' + (hasW && hasE ? 'two' : '') + '">' + (hasE ? '<section class="sec"><h2>Electricity used, units a month</h2><div class="chart" data-chart="room-e"></div></section>' : '') + (hasW ? '<section class="sec"><h2>Water used, units a month</h2><div class="chart" data-chart="room-w"></div></section>' : '') + '</div>' +
+      '<section class="sec"><h2>Every month</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Month</th><th class="num">Electricity meter</th><th class="num">Units</th><th class="num">฿</th><th class="num">Water</th><th class="num">฿</th><th class="num">Bill total (฿)</th><th>Paid on</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div></section>'
+      : '<div class="empty"><p>No months recorded for this room yet.</p></div>');
+}
+function roomForm(room) {
+  const ex = (room && room.extras) || [], isNew = !room, inPeriods = room && ymList().some(y => S.periods[y].rooms[room.id]);
+  const exRow = i => '<div class="field"><label for="ex' + i + 'n">Extra charge ' + (i + 1) + '</label><input id="ex' + i + 'n" name="exn' + i + '" value="' + esc(ex[i] ? ex[i].name : '') + '" placeholder="' + ['Internet', 'Parking', 'Furniture'][i] + '" maxlength="40"></div><div class="field"><label for="ex' + i + 'a">Amount a month (฿)</label><input id="ex' + i + 'a" name="exa' + i + '" type="number" step="any" value="' + esc(ex[i] ? ex[i].amount : '') + '"></div>';
+  openModal('<div class="modal-head"><h2>' + (isNew ? 'Add a room' : 'Edit ' + U(room.no)) + '</h2></div><form data-form="room" data-rid="' + (room ? room.id : '') + '"><div class="fields">' +
+    (isNew ? '<div class="field"><label for="rNo">Room number</label><input id="rNo" name="no" required pattern="[A-Za-z0-9\\-]{1,8}" placeholder="105"><small>Letters, numbers and dashes.</small></div>' : '') +
+    '<div class="field"><label for="rFloor">Floor</label><input id="rFloor" name="floor" type="number" min="0" max="99" required value="' + esc(room ? room.floor : 1) + '"></div>' +
+    '<div class="field"><label for="rRent">Rent a month (฿)</label><input id="rRent" name="rent" type="number" step="any" min="0" required value="' + esc(room ? room.rent : '') + '"></div>' +
+    '<div class="field' + (isNew ? '' : ' full') + '"><label for="rPeople">People living in the room</label><input id="rPeople" name="people" type="number" min="1" max="20" required value="' + esc(room && room.people ? room.people : 1) + '"><small>Sets the water charge when water is per person.</small></div>' + exRow(0) + exRow(1) + exRow(2) +
+    (inPeriods ? '' : '<div class="field"><label for="rE">Electricity meter now</label><input id="rE" name="elecStart" type="number" step="any" value="' + esc(room && room.elecStart != null ? room.elecStart : 0) + '"><small>The reading before the first bill.</small></div><div class="field"><label for="rW">Water meter now</label><input id="rW" name="waterStart" type="number" step="any" value="' + esc(room && room.waterStart != null ? room.waterStart : 0) + '"></div>') +
+    '</div><div class="modal-foot" style="margin-top:16px">' + (room && !room.tenant && room.no !== WH ? '<button type="button" class="btn btn-danger" data-act="ask-del-room" data-rid="' + room.id + '">Remove room</button>' : '') + '<button type="button" class="btn" data-act="close">Cancel</button><button class="btn btn-primary">Save room</button></div></form>');
+}
+function tenantForm(room) {
+  const t = room.tenant || {};
+  openModal('<div class="modal-head"><h2>' + (room.tenant ? 'Edit tenant, ' : 'Move a tenant into ') + U(room.no) + '</h2></div><form data-form="tenant" data-rid="' + room.id + '"><div class="fields">' +
+    '<div class="field full"><label for="tName">Tenant name</label><input id="tName" name="name" required maxlength="80" value="' + esc(t.name || '') + '"></div>' +
+    '<div class="field"><label for="tPhone">Phone</label><input id="tPhone" name="phone" maxlength="30" value="' + esc(t.phone || '') + '"></div>' +
+    '<div class="field"><label for="tDep">Deposit held (฿)</label><input id="tDep" name="deposit" type="number" step="any" min="0" value="' + esc(t.deposit != null ? t.deposit : '') + '"></div>' +
+    '<div class="field full"><label for="tPeople">People living in the room</label><input id="tPeople" name="people" type="number" min="1" max="20" required value="' + esc(room.people || 1) + '"></div>' +
+    '<div class="field"><label for="tIn">Moved in</label><input id="tIn" name="moveIn" type="date" value="' + esc(t.moveIn || todayIso()) + '"></div>' +
+    '<div class="field"><label for="tEnd">Lease ends</label><input id="tEnd" name="leaseEnd" type="date" value="' + esc(t.leaseEnd || '') + '"></div>' +
+    '</div><div class="modal-foot" style="margin-top:16px"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn btn-primary">' + (room.tenant ? 'Save tenant' : 'Move in') + '</button></div></form>');
+}
+
+/* ---------- History ---------- */
+function vHistory() {
+  const yms = ymList(); if (!yms.length) return noMonths();
+  const years = Array.from(new Set(yms.map(y => y.slice(0, 4)))); if (!years.includes(S.histYear)) S.histYear = years[years.length - 1];
+  const ys = yms.filter(y => y.slice(0, 4) === S.histYear), metric = S.histMetric;
+  const ids = Array.from(new Set(ys.flatMap(y => Object.keys(S.periods[y].rooms)))).sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+  const val = (y, id) => { const p = S.periods[y]; if (!p.rooms[id]) return null; const c = calc(p, id); return metric === 'total' ? (p.rooms[id].occupied && c.complete ? c.total : null) : c[metric]; };
+  let max = 1; ys.forEach(y => ids.forEach(id => { const v = val(y, id); if (v > max) max = v; }));
+  const cell = v => { if (v == null) return '<td class="h">–</td>'; const pct = Math.max(0, Math.round(8 + 92 * Math.min(1, v / max))); return '<td class="h' + (pct > 55 ? ' on' : '') + '" style="background:color-mix(in srgb,var(--heat) ' + (v > 0 ? pct : 0) + '%,var(--surface))">' + (metric === 'total' ? Math.round(v).toLocaleString('en-US') : num(v)) + '</td>'; };
+  const noOf = id => { for (const y of ys) if (S.periods[y].rooms[id]) return S.periods[y].rooms[id].no; return id; };
+  const heat = ids.map(id => { let sum = 0; const tds = ys.map(y => { const v = val(y, id); if (v > 0) sum += v; return cell(v); }).join(''); return '<tr><th scope="row"><a href="#room-' + id + '">' + esc(N(noOf(id))) + '</a></th>' + tds + '<td class="num"><b>' + (metric === 'total' ? Math.round(sum).toLocaleString('en-US') : num(r2(sum))) + '</b></td></tr>'; }).join('');
+  const tots = ys.map(y => monthTotals(S.periods[y])), add = k => tots.reduce((a, t) => a + t[k], 0);
+  const chip = (k, l, act, cur) => '<button class="chip" data-act="' + act + '" data-k="' + k + '" aria-pressed="' + (cur === k) + '">' + l + '</button>';
+  return '<div class="head"><div><h1>History</h1><p class="sub">Every room, every month. Darker cells mean more was used.</p></div><div class="actions">' + (S.dl ? '<button class="btn" data-act="csv">Download all months as a spreadsheet</button>' : '') + '<button class="btn" data-act="ask-earlier">Add an earlier month</button></div></div>' +
+    '<div class="actions"><div class="chips" role="group" aria-label="Year">' + years.map(y => chip(y, y, 'hist-year', S.histYear)).join('') + '</div><div class="chips" role="group" aria-label="Show">' + chip('eUnits', 'Electricity units', 'hist-metric', metric) + chip('wUnits', 'Water units', 'hist-metric', metric) + chip('total', 'Bill total (฿)', 'hist-metric', metric) + '</div></div>' +
+    '<div class="tbl-wrap"><table class="tbl heat"><thead><tr><th>Room</th>' + ys.map(y => '<th class="num">' + MON[+y.slice(5) - 1] + '</th>').join('') + '<th class="num">Year</th></tr></thead><tbody>' + heat + '</tbody></table></div>' +
+    '<section class="sec"><h2>Money by month, ' + esc(S.histYear) + '</h2><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Month</th><th class="num">Rent</th><th class="num">Electricity</th><th class="num">Water</th><th class="num">Other</th><th class="num">Billed (฿)</th><th class="num">Collected</th><th class="num">Unpaid</th></tr></thead><tbody>' +
+    ys.map((y, i) => { const t = tots[i]; return '<tr class="clickable" tabindex="0" data-act="goto-month" data-ym="' + y + '"><th scope="row">' + ymLong(y) + '</th><td class="num">' + plain(t.rent) + '</td><td class="num">' + plain(t.elec) + '</td><td class="num">' + plain(t.water) + '</td><td class="num">' + plain(t.other) + '</td><td class="num"><b>' + plain(t.billed) + '</b></td><td class="num">' + plain(t.collected) + '</td><td class="num">' + plain(t.outstanding) + '</td></tr>'; }).join('') +
+    '</tbody><tfoot><tr><th>' + esc(S.histYear) + '</th><td class="num">' + plain(add('rent')) + '</td><td class="num">' + plain(add('elec')) + '</td><td class="num">' + plain(add('water')) + '</td><td class="num">' + plain(add('other')) + '</td><td class="num">' + plain(add('billed')) + '</td><td class="num">' + plain(add('collected')) + '</td><td class="num">' + plain(add('outstanding')) + '</td></tr></tfoot></table></div></section>';
+}
+function csvAll() {
+  const q = v => { const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+  const rows = [['month', 'room', 'tenant', 'occupied', 'rent', 'elec_previous', 'elec_now', 'elec_units', 'elec_rate', 'elec_amount', 'water_previous', 'water_now', 'water_units', 'water_rate', 'water_amount', 'other_charges', 'late_fee', 'total', 'paid', 'balance', 'status', 'paid_on']];
+  ymList().forEach(ym => { const p = S.periods[ym]; periodRoomIds(p).forEach(id => { const r = p.rooms[id], c = calc(p, id); rows.push([ym, N(r.no), r.tenant, r.occupied ? 'yes' : 'no', r.rent, r.ePrev, r.eCur, c.eUnits, p.elecRate, c.eAmt, r.wPrev, r.wCur, c.wUnits, p.waterMode === 'meter' ? p.waterRate : p.waterMode, c.wAmt, r2(c.extras + c.other), c.late, c.total, c.paid, c.balance, c.status, (r.payments || []).map(x => x.date).join(' ')]); }); });
+  return '﻿' + rows.map(r => r.map(q).join(',')).join('\r\n');
+}
+
+/* ---------- Building and rates ---------- */
+function vBuilding() {
+  const B = S.all[S.bid], c = S.cfg, f = (k, label, type, extra, small) => '<div class="field' + (extra && extra.full ? ' full' : '') + '"><label for="c-' + k + '">' + label + '</label><input id="c-' + k + '" name="' + k + '" type="' + (type || 'text') + '"' + (type === 'number' ? ' step="any" min="0"' : ' maxlength="160"') + ' value="' + esc(c[k] == null ? '' : c[k]) + '">' + (small ? '<small>' + small + '</small>' : '') + '</div>';
+  const sel = (k, label, opts) => '<div class="field"><label for="c-' + k + '">' + label + '</label><select id="c-' + k + '" name="' + k + '">' + opts.map(o => '<option value="' + o[0] + '"' + ((c[k] || opts[0][0]) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></div>';
+  const me = S.user ? S.user.email : '';
+  return '<div class="head"><div><h1>Building and rates</h1><p class="sub">' + (B.kind === 'whole' ? 'This building is rented whole to one tenant. ' : 'This building is rented room by room. ') + 'These details appear on every bill. New rates apply from the next month you start, so old bills never change.</p></div></div>' +
+    '<form class="panel" data-form="cfg"><h2>Building</h2><div class="fields">' + f('name', 'Building name', 'text', { full: true }) + f('address', 'Address', 'text', { full: true }) + f('phone', 'Phone') + '</div>' +
+    '<h2>Electricity</h2><div class="fields">' + sel('elecMode', 'How electricity is charged', [['meter', 'By the meter'], ['none', 'The tenant pays the electricity company directly']]) + f('elecRate', 'Electricity, ฿ per unit', 'number', null, 'Used when electricity is by the meter.') + '</div>' +
+    '<h2>Water</h2><div class="fields">' + sel('waterMode', 'How water is charged', [['meter', 'By the meter'], ['person', 'Per person in the room'], ['flat', 'Flat amount per room'], ['none', 'The tenant pays the water company directly']]) +
+    f('waterRate', 'Water, ฿ per unit', 'number', null, 'Used when water is by the meter.') + f('waterPerPerson', 'Water, ฿ per person a month', 'number', null, 'Used when water is per person.') +
+    f('waterFlat', 'Flat water amount (฿)', 'number', null, 'Used when water is a flat amount.') + f('waterMin', 'Minimum water charge (฿)', 'number', null, 'Leave at 0 for no minimum.') + '</div>' +
+    '<h2>Paying</h2><div class="fields">' + f('dueDay', 'Bills are due on day', 'number', null, 'Day of the month, 1 to 28.') + f('lateFeePerDay', 'Late fee, ฿ per day', 'number', null, 'Suggested when you record a late payment.') +
+    f('payBank', 'Bank') + f('payAccNo', 'Account number') + f('payAccName', 'Account name') + f('promptpay', 'PromptPay number') + f('invoiceNote', 'Note at the bottom of bills', 'text', { full: true }) + '</div>' +
+    '<div class="actions"><button class="btn btn-primary">Save changes</button></div></form>' +
+    (S.user ? '<section class="panel"><h2>Who can open this building</h2><p class="sub">Each person signs in with their own email and password. They need an account on this site before you add them.</p><ul class="paylist">' +
+      (B.memberEmails || []).map(e => '<li><span>' + esc(e) + (e === me ? ' (you)' : '') + '</span>' + (e === me ? '' : '<button class="btn btn-sm btn-danger" data-act="del-member" data-email="' + esc(e) + '">Remove</button>') + '</li>').join('') + '</ul>' +
+      '<form class="inline-form" data-form="member"><div class="field"><label for="mEmail">Email to add</label><input id="mEmail" name="email" type="email" required></div><button class="btn">Add person</button></form></section>' : '') +
+    '<section class="panel"><h2>Rules worth checking</h2><p class="sub">Thailand’s 2025 residential lease rules (in force since 4 September 2025) cover landlords with three or more units. News summaries say electricity and water cannot be charged above what the utility charges you, and each bill must show the units used and the rate. This ledger prints both on every bill and compares your rate with your real cost on the Meter readings page. Read the notice itself or ask the Office of the Consumer Protection Board before relying on this.</p>' +
+    '<p class="sub"><a href="https://www.thansettakij.com/real-estate/650793" target="_blank" rel="noopener">Thansettakij summary</a>, <a href="https://www.dailynews.co.th/news/5552432/" target="_blank" rel="noopener">Daily News summary</a></p></section>' +
+    '<section class="panel"><h2>This building’s data</h2><p class="sub">A backup file holds every room, tenant, reading, payment and expense for this building. Keep one somewhere safe.</p><div class="actions"><button class="btn" data-act="backup">Download a backup</button>' +
+    '<label class="btn" for="restoreFile">Restore from a backup</label><input id="restoreFile" type="file" accept="application/json,.json" hidden>' +
+    '<button class="btn btn-danger" data-act="ask-del-building">Delete this building</button></div></section>';
+}
+function addBuildingForm() {
+  openModal('<div class="modal-head"><h2>Add a building</h2></div><form data-form="add-building"><div class="fields">' +
+    '<div class="field full"><label for="sName">Building name</label><input id="sName" name="name" required maxlength="80" placeholder="Soi 8 Apartment"></div>' +
+    '<div class="field full"><label for="sKind">How it is rented</label><select id="sKind" name="kind"><option value="rooms">Room by room, with a bill for each room</option><option value="whole">The whole building to one tenant</option></select></div>' +
+    '<div class="field"><label for="sDue">Bills are due on day</label><input id="sDue" name="dueDay" type="number" min="1" max="28" value="5"></div></div>' +
+    '<div class="fields" data-kind="rooms" style="margin-top:12px">' +
+    '<div class="field"><label for="sFloors">Floors</label><input id="sFloors" name="floors" type="number" min="1" max="30" value="3"></div>' +
+    '<div class="field"><label for="sPer">Rooms on each floor</label><input id="sPer" name="per" type="number" min="1" max="40" value="4"></div>' +
+    '<div class="field"><label for="sRent">Usual rent a month (฿)</label><input id="sRent" name="rent" type="number" min="0" step="any" value="4500"><small>You can set each room’s own rent next.</small></div>' +
+    '<div class="field"><label for="sE">Electricity, ฿ per unit</label><input id="sE" name="elecRate" type="number" min="0" step="any" value="4.5"></div>' +
+    '<div class="field"><label for="sMode">How water is charged</label><select id="sMode" name="waterMode"><option value="person">Per person in the room</option><option value="meter">By the meter</option><option value="flat">Flat amount per room</option></select></div>' +
+    '<div class="field"><label for="sPP">Water, ฿ per person a month</label><input id="sPP" name="waterPerPerson" type="number" min="0" step="any" value="100"></div>' +
+    '<p class="hint field full" id="setupPreview">Creates 12 rooms: 101 to 104 on floor 1, up to 301 to 304 on floor 3.</p></div>' +
+    '<div class="fields" data-kind="whole" style="margin-top:12px" hidden>' +
+    '<div class="field"><label for="sWRent">Rent a month (฿)</label><input id="sWRent" name="wrent" type="number" min="0" step="any" value="30000"></div>' +
+    '<div class="field"><label for="sWUtil">Electricity and water</label><select id="sWUtil" name="wutil"><option value="none">The tenant pays the utility companies directly</option><option value="meter">You bill the tenant by the meter</option></select></div></div>' +
+    '<div class="modal-foot" style="margin-top:16px"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn btn-primary">Add building</button></div></form>');
+}
+async function deleteBuildingStored(bid) {
+  const B = S.all[bid]; if (!S.backend || S.isDemo || !B) return;
+  for (const ym of Object.keys(B.periods)) await S.backend.del('buildings/' + bid + '/periods/' + ym);
+  for (const y of Object.keys(B.expenses)) await S.backend.del('buildings/' + bid + '/expenses/' + y);
+  await S.backend.del('buildings/' + bid);
+}
+
+/* ---------- actions ---------- */
+const A = {
+  'close': closeModal,
+  'close-bg': (el, ev) => { if (ev.target === el) closeModal(); },
+  'close-go': () => { closeModal(); },
+  'reboot': () => loadAll(),
+  'retry-save': () => { Object.keys(pending).forEach(k => { pending[k].dirty = true; flush(k); }); },
+  'month-step': el => { const yms = ymList(), i = yms.indexOf(S.ym) + Number(el.dataset.d); if (yms[i]) { S.ym = yms[i]; render(); } },
+  'goto-month': el => { S.ym = el.dataset.ym; location.hash = '#bills'; if (S.view === 'bills') render(); },
+  'start-month': () => { const yms = ymList(), nx = ymAdd(yms[yms.length - 1], 1); confirmModal('Start ' + ymLong(nx) + '?', 'This makes next month’s bills from the current rents' + (hasMeters(S.cfg) ? ' and carries each meter reading over. You then type the new readings.' : '.'), 'Start ' + ymLong(nx), 'do-start-month'); },
+  'do-start-month': () => { const yms = ymList(), last = S.periods[yms[yms.length - 1]], nx = ymAdd(last.ym, 1), p = makePeriod(nx, last), m = hasMeters(S.cfg); if (!m) p.issued = true; S.periods[nx] = p; S.ym = nx; persist(bpath('periods/' + nx)); closeModal(); go(m ? '#meters' : '#bills'); toast(ymLong(nx) + ' started'); },
+  'start-first': () => { if (!roomList().length) { toast('Add a room first'); go('#rooms'); return; } const ym = todayIso().slice(0, 7), p = makePeriod(ym, null), m = hasMeters(S.cfg); if (!m) p.issued = true; S.periods[ym] = p; S.ym = ym; S.histYear = ym.slice(0, 4); persist(bpath('periods/' + ym)); go(m ? '#meters' : '#bills'); },
+  'toggle-prev': () => { S.editPrev = !S.editPrev; render(); },
+  'issue': () => { const p = S.periods[S.ym]; p.issued = true; S.editPrev = false; persist(bpath('periods/' + S.ym)); location.hash = '#bills'; render(); toast('Bills are ready. Send each one from this list.'); },
+  'unlock': () => { S.periods[S.ym].issued = false; persist(bpath('periods/' + S.ym)); render(); },
+  'bill-filter': el => { S.billFilter = el.dataset.k; render(); },
+  'hist-year': el => { S.histYear = el.dataset.k; render(); },
+  'hist-metric': el => { S.histMetric = el.dataset.k; render(); },
+  'invoice': el => openInvoice(el.dataset.rid, el.dataset.ym),
+  'pay': el => {
+    const ym = el.dataset.ym || S.ym, rid = el.dataset.rid, p = S.periods[ym], r = p.rooms[rid], c = calc(p, rid), late = Math.max(0, daysBetween(p.dueDate, todayIso())), fee = late * (p.lateFeePerDay || 0);
+    openModal('<div class="modal-head"><h2>Record payment, ' + U(r.no) + '</h2></div><p class="sub">' + (esc(r.tenant) || '' + UC(r.no)) + ' owes ' + baht(c.balance) + ' for ' + ymLong(ym) + '.</p><form data-form="pay" data-rid="' + rid + '" data-ym="' + ym + '"><div class="fields">' +
+      '<div class="field"><label for="pAmt">Amount received (฿)</label><input id="pAmt" name="amount" type="number" step="any" min="0.01" required value="' + c.balance + '"></div>' +
+      '<div class="field"><label for="pDate">Date received</label><input id="pDate" name="date" type="date" required value="' + todayIso() + '"></div>' +
+      '<div class="field full"><label for="pMethod">How it was paid</label><select id="pMethod" name="method"><option>Bank transfer</option><option>PromptPay</option><option>Cash</option></select></div>' +
+      (fee > 0 && !c.late ? '<div class="field full"><label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink)"><input type="checkbox" name="addLate" value="' + fee + '" style="width:auto"> Add a late fee of ' + baht(fee) + ' (' + late + ' days at ' + baht(p.lateFeePerDay) + ')</label><small>Ticking this adds the fee to the bill and to the amount above.</small></div>' : '') +
+      '</div><div class="modal-foot" style="margin-top:16px"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn btn-primary">Record payment</button></div></form>');
+  },
+  'del-pay': el => { const p = S.periods[el.dataset.ym]; p.rooms[el.dataset.rid].payments.splice(Number(el.dataset.i), 1); persist(bpath('periods/' + el.dataset.ym)); render(); openInvoice(el.dataset.rid, el.dataset.ym); },
+  'del-other': el => { const p = S.periods[el.dataset.ym]; p.rooms[el.dataset.rid].other.splice(Number(el.dataset.i), 1); persist(bpath('periods/' + el.dataset.ym)); render(); openInvoice(el.dataset.rid, el.dataset.ym); },
+  'copy-bill': async el => {
+    const text = billMessage(invoiceModel(el.dataset.ym, el.dataset.rid));
+    try { await navigator.clipboard.writeText(text); markSent(el.dataset.ym, el.dataset.rid); toast('Message copied. Paste it into LINE.'); }
+    catch (e) { openModal('<div class="modal-head"><h2>Copy this message</h2></div><div class="field"><label for="msgBox">Select all, then copy</label><textarea id="msgBox" rows="12" readonly>' + esc(text) + '</textarea></div><div class="modal-foot"><button class="btn" data-act="close">Close</button></div>'); const b = $('#msgBox'); if (b) { b.focus(); b.select(); } }
+  },
+  'save-png': async el => {
+    const m = invoiceModel(el.dataset.ym, el.dataset.rid);
+    try {
+      const blob = await drawInvoicePng(m), name = m.no + '.png', file = typeof File === 'function' ? new File([blob], name, { type: 'image/png' }) : null;
+      if (file && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); markSent(el.dataset.ym, el.dataset.rid); toast('Bill shared'); }
+      else { await S.dl.save({ filename: name, data: blob }); markSent(el.dataset.ym, el.dataset.rid); toast('Picture saved. Send it from your photos.'); }
+    } catch (e) { if (e && (e.name === 'AbortError' || e.code === 'declined')) return; toast('The picture could not be saved here'); }
+  },
+  'csv': async () => { try { await S.dl.save({ filename: 'rent-ledger-' + todayIso() + '.csv', data: csvAll() }); toast('Spreadsheet saved'); } catch (e) { if (!e || e.code !== 'declined') toast('The file could not be saved here'); } },
+  'backup': async () => { const B = S.all[S.bid]; try { await S.dl.save({ filename: 'rent-ledger-backup-' + todayIso() + '.json', data: JSON.stringify({ app: 'rent-ledger', v: 2, kind: B.kind, cfg: B.cfg, rooms: B.rooms, periods: B.periods, expenses: B.expenses }) }); toast('Backup saved'); } catch (e) { if (!e || e.code !== 'declined') toast('The backup could not be saved here'); } },
+  'add-room': () => roomForm(null),
+  'bulk': () => { openModal('<div class="modal-head"><h2>Rent and people for every room</h2></div><p class="sub">Type each room’s own rent and how many people live there. Past bills do not change.</p><form data-form="bulk"><div class="bulk"><table class="tbl"><thead><tr><th>Room</th><th>Tenant</th><th class="num">Rent a month (฿)</th><th class="num">People</th></tr></thead><tbody>' + roomList().map(r => '<tr><th scope="row">' + esc(N(r.no)) + '</th><td class="sub">' + (r.tenant ? (esc(r.tenant.name) || 'No name yet') : 'Vacant') + '</td><td class="num"><input name="rent_' + r.id + '" type="number" step="any" min="0" value="' + esc(r.rent) + '" aria-label="' + UC(r.no) + ' rent"></td><td class="num"><input name="people_' + r.id + '" type="number" min="1" max="20" value="' + esc(r.people || 1) + '" aria-label="' + UC(r.no) + ' people" style="width:70px"></td></tr>').join('') + '</tbody></table></div><div class="modal-foot" style="margin-top:16px"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn btn-primary">Save all rooms</button></div></form>', true); },
+  'edit-room': el => roomForm(S.rooms[el.dataset.rid]),
+  'edit-tenant': el => tenantForm(S.rooms[el.dataset.rid]),
+  'ask-moveout': el => { const r = S.rooms[el.dataset.rid]; confirmModal('Move ' + (r.tenant.name || 'the tenant') + ' out of ' + U(r.no) + '?', 'The room becomes vacant. Past bills and payments stay in History. Remember to settle the deposit of ' + baht0(r.tenant.deposit) + '.', 'Move out', 'do-moveout', 'data-rid="' + r.id + '"'); },
+  'do-moveout': el => { const r = S.rooms[el.dataset.rid]; r.tenant = null; persist(bpath()); syncLatest(r.id); closeModal(); render(); toast('' + UC(r.no) + ' is now vacant'); },
+  'ask-del-room': el => { const r = S.rooms[el.dataset.rid]; confirmModal('Remove ' + U(r.no) + '?', 'The room leaves your list. Months already recorded keep its past bills.', 'Remove room', 'do-del-room', 'data-rid="' + r.id + '"'); },
+  'do-del-room': el => { const id = el.dataset.rid, yms = ymList(), lp = yms.length ? S.periods[yms[yms.length - 1]] : null; if (lp && !lp.issued && lp.rooms[id] && !(lp.rooms[id].payments || []).length) { delete lp.rooms[id]; persist(bpath('periods/' + lp.ym)); } delete S.rooms[id]; persist(bpath()); closeModal(); location.hash = '#rooms'; render(); },
+  'ask-earlier': () => { const first = ymList()[0], ym = ymAdd(first, -1); confirmModal('Add ' + ymLong(ym) + '?', 'Use this to type in bills from before you started using the ledger. The end readings are filled from ' + ymLong(first) + '; you type the readings from the month before.', 'Add ' + ymLong(ym), 'do-earlier'); },
+  'do-earlier': () => { const first = ymList()[0], ym = ymAdd(first, -1); S.periods[ym] = makeEarlierPeriod(ym, S.periods[first]); S.ym = ym; S.editPrev = true; persist(bpath('periods/' + ym)); closeModal(); location.hash = '#meters'; render(); },
+  'open-building': el => { openBuilding(el.dataset.bid); go('#overview'); },
+  'add-building': () => addBuildingForm(),
+  'sign-out': () => { if (FB) FB.signOut(); },
+  'forgot': async () => { const e = $('#lgEmail').value.trim(); if (!e) { loginMsg('Type your email first, then press this again.'); return; } try { await FB.reset(e); } catch (x) {} loginMsg('If that email has an account, a reset link is on its way.', true); },
+  'exp-year': el => { S.expYear = el.dataset.k; render(); },
+  'profit-year': el => { S.profitYear = el.dataset.k; render(); },
+  'edit-expense': el => { const B = S.all[S.bid]; let e = null; Object.keys(B.expenses).forEach(y => { const x = B.expenses[y].find(i => i.id === el.dataset.id); if (x) e = x; }); if (!e) return; openModal('<div class="modal-head"><h2>Edit expense</h2></div><form data-form="expense" data-id="' + esc(e.id) + '"><div class="fields">' + expenseFields(e, 'em-') + '</div><div class="modal-foot" style="margin-top:16px"><button type="button" class="btn" data-act="close">Cancel</button><button class="btn btn-primary">Save expense</button></div></form>'); },
+  'ask-del-expense': el => confirmModal('Delete this expense?', 'It will be removed from the profit report.', 'Delete expense', 'do-del-expense', 'data-id="' + esc(el.dataset.id) + '"'),
+  'do-del-expense': el => { const B = S.all[S.bid]; Object.keys(B.expenses).forEach(y => { const i = B.expenses[y].findIndex(x => x.id === el.dataset.id); if (i >= 0) { B.expenses[y].splice(i, 1); persist(bpath('expenses/' + y)); } }); closeModal(); render(); toast('Expense deleted'); },
+  'del-member': el => { const B = S.all[S.bid], e = el.dataset.email; if (S.user && e === S.user.email) return; B.memberEmails = (B.memberEmails || []).filter(x => x !== e); persist(bpath()); render(); toast(e + ' can no longer open this building'); },
+  'ask-del-building': () => confirmModal('Delete ' + S.cfg.name + '?', 'This deletes every room, tenant, bill, payment and expense for this building. Download a backup first if you might want it back.', 'Delete building', 'do-del-building'),
+  'do-del-building': async () => { const bid = S.bid; closeModal(); try { await deleteBuildingStored(bid); } catch (e) { toast('Could not delete. Check your connection.'); return; } Object.keys(pending).forEach(k => { if (k.indexOf('buildings/' + bid) === 0) { clearTimeout(pending[k].timer); delete pending[k]; } }); delete S.all[bid]; openBuilding(null); go('#home'); toast('Building deleted'); },
+  'do-restore': async () => {
+    const d = A._restore, B = S.all[S.bid]; closeModal(); if (!d || !B) return;
+    const oldP = Object.keys(B.periods), oldE = Object.keys(B.expenses);
+    B.cfg = Object.assign(clone(DEFAULT_CFG), d.cfg); B.rooms = d.rooms; B.periods = d.periods; B.expenses = d.expenses || {}; if (d.kind === 'whole' || d.kind === 'rooms') B.kind = d.kind;
+    if (S.backend && !S.isDemo) {
+      for (const ym of oldP) if (!B.periods[ym]) { try { await S.backend.del('buildings/' + S.bid + '/periods/' + ym); } catch (e) {} }
+      for (const y of oldE) if (!B.expenses[y]) { try { await S.backend.del('buildings/' + S.bid + '/expenses/' + y); } catch (e) {} }
+    }
+    openBuilding(S.bid); persistAll(); go('#overview'); toast('Backup restored');
+  }
+};
+const FORMS = {
+  'pay': (fd, form) => {
+    const ym = form.dataset.ym, rid = form.dataset.rid, r = S.periods[ym].rooms[rid]; let amt = Number(fd.get('amount')) || 0; const fee = Number(fd.get('addLate')) || 0;
+    if (fee > 0) { r.lateFee = fee; amt = r2(amt + fee); }
+    if (amt <= 0) return;
+    r.payments = (r.payments || []).concat([{ date: fd.get('date') || todayIso(), amount: r2(amt), method: fd.get('method') }]);
+    persist(bpath('periods/' + ym)); closeModal(); render(); toast('Payment of ' + baht(amt) + ' recorded');
+  },
+  'add-other': (fd, form) => { const ym = form.dataset.ym, rid = form.dataset.rid, r = S.periods[ym].rooms[rid], amt = Number(fd.get('amount')); if (!Number.isFinite(amt) || !String(fd.get('name')).trim()) return; r.other = (r.other || []).concat([{ name: String(fd.get('name')).trim(), amount: r2(amt) }]); persist(bpath('periods/' + ym)); render(); openInvoice(rid, ym); },
+  'room': (fd, form) => {
+    let room = S.rooms[form.dataset.rid];
+    if (!room) { const no = String(fd.get('no')).trim(), id = 'r' + no; if (!/^[A-Za-z0-9-]{1,8}$/.test(no)) return; if (S.rooms[id]) { toast('Room ' + no + ' already exists'); return; } room = S.rooms[id] = { id, no, tenant: null, people: 1, elecStart: 0, waterStart: 0 }; }
+    room.floor = Math.round(Number(fd.get('floor')) || 0); room.rent = r2(Number(fd.get('rent')) || 0); room.people = Math.min(20, Math.max(1, Math.round(Number(fd.get('people')) || 1)));
+    room.extras = [0, 1, 2].map(i => ({ name: String(fd.get('exn' + i) || '').trim(), amount: r2(Number(fd.get('exa' + i)) || 0) })).filter(x => x.name && x.amount);
+    if (fd.has('elecStart')) { room.elecStart = Number(fd.get('elecStart')) || 0; room.waterStart = Number(fd.get('waterStart')) || 0; }
+    persist(bpath()); syncLatest(room.id); closeModal(); render(); toast('' + UC(room.no) + ' saved');
+  },
+  'bulk': fd => { roomList().forEach(r => { if (fd.has('rent_' + r.id)) { r.rent = r2(Math.max(0, Number(fd.get('rent_' + r.id)) || 0)); r.people = Math.min(20, Math.max(1, Math.round(Number(fd.get('people_' + r.id)) || 1))); } }); persist(bpath()); roomList().forEach(r => syncLatest(r.id)); closeModal(); render(); toast('All rooms saved'); },
+  'tenant': (fd, form) => {
+    const room = S.rooms[form.dataset.rid], was = !!room.tenant;
+    room.tenant = { name: String(fd.get('name')).trim(), phone: String(fd.get('phone') || '').trim(), deposit: r2(Number(fd.get('deposit')) || 0), moveIn: fd.get('moveIn') || '', leaseEnd: fd.get('leaseEnd') || '', note: '' };
+    room.people = Math.min(20, Math.max(1, Math.round(Number(fd.get('people')) || 1)));
+    persist(bpath()); syncLatest(room.id); closeModal(); render(); toast(was ? 'Tenant saved' : room.tenant.name + ' moved into ' + U(room.no));
+  },
+  'cfg': fd => {
+    ['name', 'address', 'phone', 'payBank', 'payAccNo', 'payAccName', 'promptpay', 'invoiceNote'].forEach(k => { S.cfg[k] = String(fd.get(k) || '').trim(); });
+    ['elecRate', 'waterRate', 'waterFlat', 'waterPerPerson', 'waterMin', 'lateFeePerDay'].forEach(k => { S.cfg[k] = Math.max(0, Number(fd.get(k)) || 0); });
+    S.cfg.dueDay = Math.min(28, Math.max(1, Math.round(Number(fd.get('dueDay')) || 5)));
+    S.cfg.elecMode = fd.get('elecMode') === 'none' ? 'none' : 'meter'; S.cfg.waterMode = ['flat', 'person', 'none'].includes(fd.get('waterMode')) ? fd.get('waterMode') : 'meter';
+    if (!S.cfg.name) S.cfg.name = 'My building';
+    persist(bpath()); render(); toast('Changes saved');
+  },
+  'add-building': fd => {
+    const kind = fd.get('kind') === 'whole' ? 'whole' : 'rooms', name = String(fd.get('name') || '').trim() || 'My building';
+    const bid = 'b' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), rooms = {};
+    const cfg = Object.assign(clone(DEFAULT_CFG), { name, dueDay: Math.min(28, Math.max(1, Math.round(Number(fd.get('dueDay')) || 5))) });
+    if (kind === 'whole') {
+      const m = fd.get('wutil') === 'meter'; cfg.elecMode = m ? 'meter' : 'none'; cfg.waterMode = m ? 'meter' : 'none';
+      rooms.whole = { id: 'whole', no: WH, floor: 1, rent: r2(Math.max(0, Number(fd.get('wrent')) || 0)), people: 1, extras: [], elecStart: 0, waterStart: 0, tenant: null };
+    } else {
+      const floors = Math.min(30, Math.max(1, Math.round(Number(fd.get('floors')) || 1))), per = Math.min(40, Math.max(1, Math.round(Number(fd.get('per')) || 1))), rent = r2(Math.max(0, Number(fd.get('rent')) || 0));
+      cfg.elecMode = 'meter'; cfg.elecRate = Math.max(0, Number(fd.get('elecRate')) || 0); cfg.waterMode = ['flat', 'meter'].includes(fd.get('waterMode')) ? fd.get('waterMode') : 'person'; cfg.waterPerPerson = Math.max(0, Number(fd.get('waterPerPerson')) || 0);
+      for (let f = 1; f <= floors; f++) for (let n = 1; n <= per; n++) { const no = String(f) + pad(n), id = 'r' + no; rooms[id] = { id, no, floor: f, rent, people: 1, extras: [], elecStart: 0, waterStart: 0, tenant: null }; }
+    }
+    S.all[bid] = { id: bid, kind, memberEmails: S.user ? [S.user.email] : [], cfg, rooms, periods: {}, expenses: {} };
+    openBuilding(bid); persist(bpath()); closeModal(); go(kind === 'whole' ? '#room-whole' : '#rooms');
+    toast(kind === 'whole' ? name + ' added. Add the tenant next.' : name + ' added. Set each room’s rent next.');
+  },
+  'expense': (fd, form) => {
+    const B = S.all[S.bid], amt = r2(Number(fd.get('amount')) || 0), date = String(fd.get('date') || todayIso());
+    if (!(amt > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) { toast('Type a date and an amount above zero'); return; }
+    const id = form.dataset.id || ('e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6)), y = date.slice(0, 4), touched = new Set([y]);
+    const item = { id, date, cat: CAT[fd.get('cat')] && fd.get('cat') !== 'utility' ? String(fd.get('cat')) : 'other', amount: amt, note: String(fd.get('note') || '').trim().slice(0, 200), room: S.rooms[fd.get('room')] ? String(fd.get('room')) : '' };
+    Object.keys(B.expenses).forEach(k => { const i = B.expenses[k].findIndex(x => x.id === id); if (i >= 0) { B.expenses[k].splice(i, 1); touched.add(k); } });
+    (B.expenses[y] = B.expenses[y] || []).push(item);
+    touched.forEach(k => persist(bpath('expenses/' + k))); S.expYear = y; closeModal(); render(); toast(form.dataset.id ? 'Expense saved' : 'Expense of ' + baht(amt) + ' added');
+  },
+  'member': fd => {
+    const B = S.all[S.bid], e = String(fd.get('email') || '').trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) { toast('That does not look like an email address'); return; }
+    B.memberEmails = B.memberEmails || []; if (!B.memberEmails.includes(e)) B.memberEmails.push(e);
+    persist(bpath()); render(); toast(e + ' can now open this building');
+  },
+  'login': async (fd, form) => {
+    const btn = $('#lgBtn'); loginMsg(''); btn.disabled = true; btn.textContent = 'Signing in…';
+    try { await FB.signIn(String(fd.get('email')).trim(), String(fd.get('password'))); form.reset(); }
+    catch (e) { const c = (e && e.code) || ''; loginMsg(c === 'auth/too-many-requests' ? 'Too many tries. Wait a few minutes, then try again.' : c === 'auth/network-request-failed' ? 'No connection. Check your internet, then try again.' : 'That email or password is not right.'); }
+    btn.disabled = false; btn.textContent = 'Sign in';
+  }
+};
+
+/* ---------- events ---------- */
+document.addEventListener('click', ev => {
+  const el = ev.target.closest('[data-act]'); if (!el) return;
+  if (el.tagName === 'TR' && ev.target.closest('button,a,input')) return;
+  const fn = A[el.dataset.act]; if (fn) { if (el.tagName === 'BUTTON') ev.preventDefault(); fn(el, ev); }
+});
+document.addEventListener('submit', ev => { const f = ev.target; ev.preventDefault(); const fn = FORMS[f.dataset.form]; if (fn) fn(new FormData(f), f); });
+document.addEventListener('input', ev => {
+  const t = ev.target;
+  if (t.classList.contains('rd') && t.closest('#meterTbl')) onMeterInput(t);
+  else if (t.dataset.u) { const p = S.periods[S.ym]; p.utility = p.utility || {}; p.utility[t.dataset.u] = numOrNull(t.value); persist(bpath('periods/' + S.ym)); $('#vE').innerHTML = utilVerdict(p, 'elec'); $('#vW').innerHTML = utilVerdict(p, 'water'); }
+  else if (t.form && t.form.dataset.form === 'add-building') { const fm = t.form, kind = fm.kind.value; $$('[data-kind]', fm).forEach(g => { g.hidden = g.dataset.kind !== kind; }); const fl = Math.min(30, Math.max(1, Math.round(Number(fm.floors.value) || 1))), per = Math.min(40, Math.max(1, Math.round(Number(fm.per.value) || 1))); $('#setupPreview').textContent = 'Creates ' + (fl * per) + ' rooms: 101 to 1' + pad(per) + ' on floor 1' + (fl > 1 ? ', up to ' + fl + '01 to ' + fl + pad(per) + ' on floor ' + fl : '') + '.'; }
+});
+document.addEventListener('change', ev => {
+  const t = ev.target;
+  if (t.id === 'bsel') { if (!t.value) return; openBuilding(t.value); if (B_VIEWS.includes(S.view)) route(); else go('#overview'); }
+  else if (t.id === 'monthSel') { S.ym = t.value; render(); }
+  else if (t.id === 'readDate') { S.periods[S.ym].readDate = t.value; persist(bpath('periods/' + S.ym)); }
+  else if (t.id === 'dueDate' && t.value) { S.periods[S.ym].dueDate = t.value; persist(bpath('periods/' + S.ym)); }
+  else if (t.id === 'restoreFile' && t.files && t.files[0]) {
+    const rd = new FileReader();
+    rd.onload = () => { try { const d = JSON.parse(rd.result); if (d.app !== 'rent-ledger' || !d.cfg || !d.rooms || !d.periods) throw 0; A._restore = d; confirmModal('Restore this backup?', 'It holds ' + Object.keys(d.rooms).length + ' rooms and ' + Object.keys(d.periods).length + ' months. It replaces everything in this building.', 'Restore backup', 'do-restore'); } catch (e) { toast('That file is not a rent ledger backup'); } t.value = ''; };
+    rd.readAsText(t.files[0]);
+  }
+});
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape' && $('#modal').innerHTML) closeModal();
+  const t = ev.target;
+  if (ev.key === 'Enter' && t.classList && t.classList.contains('rd')) { ev.preventDefault(); const all = $$('#meterTbl .rd[data-f="' + t.dataset.f + '"]:not(:disabled)'), i = all.indexOf(t); if (all[i + 1]) { all[i + 1].focus(); all[i + 1].select(); } }
+  if ((ev.key === 'Enter' || ev.key === ' ') && t.tagName === 'TR' && t.dataset.act) { ev.preventDefault(); A[t.dataset.act](t, ev); }
+});
+const tipEl = $('#tip');
+function showTip(el, x, y) {
+  let d; try { d = JSON.parse(el.dataset.tip); } catch (e) { return; }
+  tipEl.textContent = ''; const t = document.createElement('div'); t.className = 't'; t.textContent = d.t; tipEl.appendChild(t);
+  d.rows.forEach(r => { const row = document.createElement('div'); row.className = 'r'; const l = document.createElement('span'); if (r[2]) { const k = document.createElement('i'); k.className = 'k'; k.style.background = 'var(' + r[2] + ')'; l.appendChild(k); } l.appendChild(document.createTextNode(r[0])); const b = document.createElement('b'); b.textContent = r[1]; row.appendChild(l); row.appendChild(b); tipEl.appendChild(row); });
+  tipEl.hidden = false; const w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+  tipEl.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, x + 14)) + 'px'; tipEl.style.top = Math.max(8, y - h - 12) + 'px';
+}
+document.addEventListener('pointermove', ev => { const el = ev.target.closest && ev.target.closest('[data-tip]'); if (el) showTip(el, ev.clientX, ev.clientY); else tipEl.hidden = true; });
+document.addEventListener('focusin', ev => { const el = ev.target.closest && ev.target.closest('[data-tip]'); if (el) { const b = el.getBoundingClientRect(); showTip(el, b.left + b.width / 2, b.top + 30); } });
+document.addEventListener('focusout', () => { tipEl.hidden = true; });
+let rz; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(mountCharts, 150); });
+window.addEventListener('hashchange', () => { closeModal(); route(); });
+
+window.RentLedger = { S, calc, makePeriod, monthTotals, invoiceModel, billMessage, csvAll, drawInvoicePng, yearMoney, openBuilding, route, docData };
+boot();
+})();
+</script>
+</body>
+</html>
